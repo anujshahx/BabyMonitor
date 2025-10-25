@@ -11,41 +11,27 @@
   <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
 
   <style>
-    :root {
-      --bg: #0f172a;
-      --card: #0b1220;
-      --muted: #94a3b8;
-      --accent: #22c55e;
-      --glass: rgba(255,255,255,0.03);
-    }
-    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;}
-    body{background: linear-gradient(180deg,#071024 0%, #0b1220 100%); color:#e6eef8; display:flex; align-items:center; justify-content:center; padding:20px;}
-    .app { width:100%; max-width:980px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:14px; box-shadow:0 10px 30px rgba(2,6,23,0.6); padding:18px; }
-    h1{margin:0 0 8px 0;font-size:20px}
-    p.lead{margin:0 0 18px 0;color:var(--muted)}
-    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-    button{background:var(--glass); border:1px solid rgba(255,255,255,0.03); color:inherit; padding:10px 12px; border-radius:10px; cursor:pointer}
-    button.primary{background:linear-gradient(90deg,#0ea5a4,#22c55e); color:#032; font-weight:600}
-    .pane{display:grid; grid-template-columns: 1fr 360px; gap:14px;}
-    .card{background:rgba(255,255,255,0.02); padding:12px; border-radius:12px; border:1px solid rgba(255,255,255,0.02)}
-    .videoWrap { background:#000; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; height:320px;}
-    video{width:100%; height:100%; object-fit:cover; background:#000}
-    .qrArea { display:flex; flex-direction:column; align-items:center; gap:10px; }
-    .qrCanvas { width:256px; height:256px; background: #fff; padding:6px; border-radius:8px; box-shadow:0 6px 18px rgba(2,6,23,0.6); }
-    textarea { width:100%; min-height:80px; background:transparent; color:inherit; border:1px dashed rgba(255,255,255,0.04); padding:8px; border-radius:8px; resize:vertical }
-    .small { font-size:13px; color:var(--muted) }
-    .muted { color:var(--muted) }
-    .row { display:flex; gap:8px; align-items:center; }
-    .scanner { width:320px; height:240px; background:#111; border-radius:8px; overflow:hidden; }
-    .hidden { display:none !important; }
-    footer { margin-top:12px; color:var(--muted); font-size:13px; }
-    @media (max-width:900px){ .pane{grid-template-columns:1fr; } .qrCanvas{width:220px;height:220px} .scanner{width:100%;height:320px} }
+    body{font-family:Inter,system-ui,Arial; background:#071024;color:#e6eef8;padding:18px}
+    .app{max-width:980px;margin:0 auto}
+    .controls{display:flex;gap:8px;margin-bottom:12px}
+    button{padding:8px 10px;border-radius:8px;border:none;cursor:pointer}
+    button.primary{background:#22c55e;color:#032}
+    .pane{display:grid;grid-template-columns:1fr 360px;gap:12px}
+    .card{background:rgba(255,255,255,0.02);padding:12px;border-radius:8px}
+    .videoWrap{background:#000;height:320px;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+    video{width:100%;height:100%;object-fit:cover}
+    .qrCanvas{width:256px;height:256px;background:#fff;padding:6px;border-radius:8px}
+    textarea{width:100%;min-height:80px;background:transparent;color:inherit;border:1px dashed rgba(255,255,255,0.06);padding:8px;border-radius:6px}
+    .hidden{display:none}
+    .scanner{width:320px;height:240px;background:#111;border-radius:8px}
+    footer{margin-top:10px;color:#94a3b8}
+    @media(max-width:900px){.pane{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-  <div class="app" role="main">
+  <div class="app">
     <h1>Baby Monitor — QR WebRTC (Camera → Monitor)</h1>
-    <p class="lead">Use two phones: one in <strong>Camera</strong> mode to generate an offer QR, the other in <strong>Monitor</strong> mode to scan it and generate an answer QR. Then scan the answer on the Camera phone to finish connection.</p>
+    <p>Camera mode creates an offer QR. Monitor scans offer, creates answer QR. Camera scans answer to finish.</p>
 
     <div class="controls">
       <button id="modeCamera" class="primary">Start Camera Mode</button>
@@ -54,109 +40,74 @@
     </div>
 
     <div class="pane">
-      <!-- Left: Camera preview / Monitor preview -->
       <div class="card">
         <div id="cameraControls" class="hidden">
-          <div class="row" style="justify-content:space-between">
-            <div><strong>Camera device</strong> — will publish video</div>
-            <div class="small muted">Local preview (what will appear on monitor)</div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong>Camera device</strong></div><div style="color:#94a3b8">Local preview</div>
           </div>
-          <div class="videoWrap" style="margin-top:10px">
-            <video id="localVideo" autoplay muted playsinline></video>
-          </div>
-          <div style="margin-top:10px" class="row">
+          <div class="videoWrap" style="margin-top:8px"><video id="localVideo" autoplay muted playsinline></video></div>
+
+          <div style="margin-top:10px;display:flex;gap:8px">
             <button id="genOfferBtn" class="primary">Generate Offer & Show QR</button>
-            <button id="scanAnswerBtn">Scan Answer (when monitor ready)</button>
+            <button id="scanAnswerBtn">Scan Answer</button>
             <button id="pasteAnswerBtn">Paste Answer</button>
           </div>
-          <div id="offerStatus" class="small muted" style="margin-top:8px">Status: idle</div>
-          <div id="answerScannerBlock" class="hidden" style="margin-top:10px">
-            <div class="small muted">Scan the answer QR shown on the Monitor device</div>
+          <div id="offerStatus" style="margin-top:8px;color:#94a3b8">Status: idle</div>
+          <div id="answerScannerBlock" class="hidden" style="margin-top:8px">
+            <div style="color:#94a3b8">Scan the answer QR from Monitor</div>
             <div id="localScanner" class="scanner" style="margin-top:8px"></div>
-            <div style="margin-top:8px" class="row">
-              <button id="stopLocalScanner">Stop Scanner</button>
-            </div>
+            <div style="margin-top:8px"><button id="stopLocalScanner">Stop Scanner</button></div>
           </div>
         </div>
 
         <div id="monitorControls" class="hidden">
-          <div class="row" style="justify-content:space-between">
-            <div><strong>Monitor device</strong> — scans offer QR and displays remote video</div>
-            <div class="small muted">Remote preview (what you will see)</div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong>Monitor device</strong></div><div style="color:#94a3b8">Remote preview</div>
           </div>
-          <div class="videoWrap" style="margin-top:10px">
-            <video id="remoteVideo" autoplay playsinline></video>
-          </div>
+          <div class="videoWrap" style="margin-top:8px"><video id="remoteVideo" autoplay playsinline></video></div>
 
-          <div style="margin-top:10px" class="row">
-            <button id="startScanOfferBtn" class="primary">Scan Offer QR (camera phone)</button>
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button id="startScanOfferBtn" class="primary">Scan Offer QR</button>
             <button id="pasteOfferBtn">Paste Offer</button>
           </div>
 
           <div id="offerScannerBlock" class="hidden" style="margin-top:8px">
-            <div class="small muted">Point here to the Camera phone's Offer QR</div>
+            <div style="color:#94a3b8">Scan the Camera phone's Offer QR</div>
             <div id="remoteScanner" class="scanner" style="margin-top:8px"></div>
-            <div style="margin-top:8px" class="row">
-              <button id="stopRemoteScanner">Stop Scanner</button>
-            </div>
+            <div style="margin-top:8px"><button id="stopRemoteScanner">Stop Scanner</button></div>
           </div>
 
-          <div id="monitorStatus" class="small muted" style="margin-top:8px">Status: idle</div>
+          <div id="monitorStatus" style="margin-top:8px;color:#94a3b8">Status: idle</div>
         </div>
       </div>
 
-      <!-- Right: QR / manual boxes -->
-      <div class="card qrArea">
-        <div id="qrAreaOffer" class="">
-          <div><strong>Offer QR (Camera) / Answer QR (Monitor)</strong></div>
-          <div id="qrHolder" class="qrCanvas" aria-hidden="true"></div>
-          <div class="small muted">The QR below will show the Offer or Answer depending on your action. Use other device to scan.</div>
-          <div style="width:100%; margin-top:8px;">
-            <textarea id="manualBox" placeholder="Manual offer/answer text (paste here as fallback)"></textarea>
-            <div style="margin-top:8px" class="row">
-              <button id="copyManual">Copy to clipboard</button>
-              <button id="clearManual">Clear</button>
-            </div>
-          </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:8px;align-items:center">
+        <div style="width:100%;text-align:left"><strong>Offer QR (Camera) / Answer QR (Monitor)</strong></div>
+        <div id="qrHolder" class="qrCanvas" aria-hidden="true"></div>
+        <textarea id="manualBox" placeholder="Manual offer/answer text (fallback)"></textarea>
+        <div style="width:100%;display:flex;gap:8px">
+          <button id="copyManual">Copy</button>
+          <button id="clearManual">Clear</button>
+          <button id="applyManual" style="margin-left:auto">Apply pasted</button>
         </div>
-
-        <hr style="width:100%; border:none; border-top:1px solid rgba(255,255,255,0.03)" />
-
-        <div class="small muted" style="text-align:center">Troubleshooting: If QR scanning fails, export the long text (offer/answer) and paste manually into the other device's manual box then press "Apply pasted offer/answer".</div>
-        <div style="margin-top:6px" class="row">
-          <button id="applyManual" style="margin-left:auto">Apply pasted offer/answer</button>
-        </div>
-
+        <div style="width:100%;text-align:center;color:#94a3b8;font-size:13px">If QR fails, copy the offer/answer text between phones manually.</div>
       </div>
     </div>
 
-    <footer>
-      Notes: Uses a STUN server for ICE (stun:stun.l.google.com:19302). This page runs entirely in the browser — no server. If connection fails try re-generating the offer and repeat.
-    </footer>
+    <footer>Uses STUN: stun:stun.l.google.com:19302. Works on HTTPS (GitHub Pages).</footer>
   </div>
 
 <script>
-/*
-  Flow summary:
-  - Camera mode:
-      - getUserMedia -> show local preview
-      - click "Generate Offer" -> create RTCPeerConnection, add tracks, createOffer, setLocalDescription, wait for ICE gather complete (onicecandidate null)
-      - show offer JSON (pc.localDescription) as QR and as manual text
-      - Monitor scans that QR
-      - Monitor creates answer, shows answer QR
-      - Camera taps "Scan Answer" -> opens scanner -> scans answer QR -> setRemoteDescription(answer) -> done
-  - Monitor mode:
-      - Scan offer or paste, setRemoteDescription(offer), createAnswer, setLocalDescription, wait ICE gather complete -> show answer QR
-      - When Camera scans answer and setsRemoteDescription, remote video will appear
-*/
-
 const stunServers = [{ urls: "stun:stun.l.google.com:19302" }];
-
 let localStream = null;
-let pcCamera = null;   // peer connection for camera device
-let pcMonitor = null;  // peer connection for monitor device
+let pcCamera = null;
+let pcMonitor = null;
 
-// UI elements
+let remoteScanner = null;
+let localScanner = null;
+let qrInstance = null;
+
+// UI refs
 const modeCameraBtn = document.getElementById('modeCamera');
 const modeMonitorBtn = document.getElementById('modeMonitor');
 const stopAllBtn = document.getElementById('stopAll');
@@ -189,316 +140,248 @@ const localScannerBlock = document.getElementById('answerScannerBlock');
 const localScannerEl = document.getElementById('localScanner');
 const stopLocalScannerBtn = document.getElementById('stopLocalScanner');
 
-// scanners
-let remoteScanner = null;
-let localScanner = null;
-
-// QR generator helper
-let qrInstance = null;
 function showQRCode(text) {
   qrHolder.innerHTML = "";
-  // qrcodejs expects a DOM element
-  qrInstance = new QRCode(qrHolder, {
-    text: text,
-    width: 256,
-    height: 256,
-    correctLevel: QRCode.CorrectLevel.M
-  });
-  // also fill manual box
+  try {
+    qrInstance = new QRCode(qrHolder, { text, width:256, height:256, correctLevel: QRCode.CorrectLevel.M });
+  } catch(e){ console.error('QR render failed', e); qrHolder.textContent = 'QR render failed'; }
   manualBox.value = text;
 }
 
-// helper: copy manual to clipboard
 copyManualBtn.addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(manualBox.value);
-    alert('Copied to clipboard');
-  } catch (e) {
-    alert('Copy failed: ' + e);
-  }
+  try { await navigator.clipboard.writeText(manualBox.value); alert('Copied'); } catch(e){ alert('Copy failed: '+e.message) }
 });
-clearManualBtn.addEventListener('click', ()=> manualBox.value = '');
+clearManualBtn.addEventListener('click', () => manualBox.value = '');
 
-// reset UI & state
 function resetAll() {
   stopScanners();
   stopLocalStream();
-  if (pcCamera) { try { pcCamera.close(); } catch(e){} pcCamera = null; }
-  if (pcMonitor) { try { pcMonitor.close(); } catch(e){} pcMonitor = null; }
-  offerStatus.textContent = 'Status: idle';
-  monitorStatus.textContent = 'Status: idle';
-  qrHolder.innerHTML = '';
-  manualBox.value = '';
-  cameraControls.classList.add('hidden');
-  monitorControls.classList.add('hidden');
+  if (pcCamera) try{ pcCamera.close(); }catch(e){}
+  if (pcMonitor) try{ pcMonitor.close(); }catch(e){}
+  pcCamera = null; pcMonitor = null;
+  qrHolder.innerHTML = ''; manualBox.value = '';
+  cameraControls.classList.add('hidden'); monitorControls.classList.add('hidden');
+  offerStatus.textContent = 'Status: idle'; monitorStatus.textContent = 'Status: idle';
 }
 
-// start local camera preview (for Camera mode)
 async function startLocalPreview() {
   try {
+    // prefer environment facing camera on phones
     localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true });
     localVideo.srcObject = localStream;
+    console.log('Local stream tracks:', localStream.getTracks().map(t => t.kind));
   } catch (e) {
     console.error('getUserMedia failed', e);
     alert('Could not access camera/mic: ' + e.message);
   }
 }
+
 async function stopLocalStream() {
-  if (localStream) {
-    localStream.getTracks().forEach(t => t.stop());
-    localVideo.srcObject = null;
-    localStream = null;
-  }
+  if (!localStream) return;
+  localStream.getTracks().forEach(t => t.stop());
+  localVideo.srcObject = null;
+  localStream = null;
 }
 
-// mode toggles
+// UI mode toggles
 modeCameraBtn.addEventListener('click', async () => {
   resetAll();
   cameraControls.classList.remove('hidden');
   await startLocalPreview();
 });
-
-modeMonitorBtn.addEventListener('click', async () => {
+modeMonitorBtn.addEventListener('click', () => {
   resetAll();
   monitorControls.classList.remove('hidden');
 });
-
-// stop / reset
 stopAllBtn.addEventListener('click', resetAll);
 
-// utility: wait for ICE gathering to finish (resolve when onicecandidate gets null)
+// ICE gather helper
 function gatherIceCandidatesComplete(pc, timeoutMs = 10000) {
-  return new Promise((resolve, reject) => {
-    if (!pc) return reject(new Error('pc undefined'));
-    let resolved = false;
+  return new Promise((resolve) => {
+    if (!pc) return resolve();
+    let done = false;
     const timeout = setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        console.warn('ICE gathering timed out after', timeoutMs, 'ms');
-        resolve(); // resolve anyway (partial candidates)
-      }
+      if (!done) { done = true; console.warn('ICE gather timeout'); resolve(); }
     }, timeoutMs);
 
-    pc.addEventListener('icecandidate', function listener(ev) {
-      if (!ev) return;
-      if (ev.candidate === null) {
-        if (!resolved) {
-          resolved = true;
-          clearTimeout(timeout);
-          pc.removeEventListener('icecandidate', listener);
-          resolve();
-        }
+    pc.addEventListener('icecandidate', function onIce(e){
+      if (e && e.candidate === null) {
+        if (!done) { done = true; clearTimeout(timeout); pc.removeEventListener('icecandidate', onIce); resolve(); }
       }
     });
-    // fallback: if already complete
-    if (pc.iceGatheringState === 'complete' && !resolved) {
-      resolved = true; clearTimeout(timeout); resolve();
+    // if already complete
+    if (pc.iceGatheringState === 'complete' && !done) {
+      done = true; clearTimeout(timeout); resolve();
     }
   });
 }
 
-// ---------- Camera side (generate offer & show QR) ----------
+// ---------- Camera: create offer & show QR ----------
 genOfferBtn.addEventListener('click', async () => {
-  if (!localStream) {
-    alert('No camera stream. Allow camera and try again.');
-    return;
-  }
-  offerStatus.textContent = 'Status: creating peer connection...';
-
-  // create RTCPeerConnection
-  pcCamera = new RTCPeerConnection({ iceServers: stunServers });
-
-  // add local tracks
-  localStream.getTracks().forEach(track => pcCamera.addTrack(track, localStream));
-
-  pcCamera.onconnectionstatechange = () => {
-    offerStatus.textContent = 'Connection state: ' + pcCamera.connectionState;
-  };
-
-  pcCamera.oniceconnectionstatechange = () => {
-    offerStatus.textContent = 'ICE state: ' + pcCamera.iceConnectionState;
-  };
-
   try {
-    const offer = await pcCamera.createOffer({ offerToReceiveAudio: false, offerToReceiveVideo: false });
+    if (!localStream) { alert('No camera stream. Allow camera and try again.'); return; }
+    offerStatus.textContent = 'Creating PeerConnection...';
+    console.log('Creating pcCamera');
+
+    // close old if present
+    if (pcCamera) try{ pcCamera.close(); }catch(e){}
+    pcCamera = new RTCPeerConnection({ iceServers: stunServers });
+
+    // add tracks BEFORE createOffer
+    if (!localStream.getTracks || localStream.getTracks().length === 0) {
+      throw new Error('localStream has no tracks');
+    }
+    localStream.getTracks().forEach(track => {
+      const sender = pcCamera.addTrack(track, localStream);
+      console.log('Added track', track.kind, sender);
+    });
+
+    pcCamera.onconnectionstatechange = () => { offerStatus.textContent = 'Connection state: ' + pcCamera.connectionState; console.log('pcCamera connectionState', pcCamera.connectionState); };
+    pcCamera.oniceconnectionstatechange = () => { offerStatus.textContent = 'ICE state: ' + pcCamera.iceConnectionState; console.log('pcCamera iceConnectionState', pcCamera.iceConnectionState); };
+
+    // createOffer WITHOUT options (avoid browser-specific internal errors)
+    console.log('Calling createOffer()');
+    const offer = await pcCamera.createOffer();
+    console.log('Offer created:', offer.sdp ? ('sdp length ' + offer.sdp.length) : offer);
     await pcCamera.setLocalDescription(offer);
 
-    offerStatus.textContent = 'Status: waiting for ICE candidates...';
-
-    // wait for ICE to finish gathering candidates (so we can include them in localDescription)
+    offerStatus.textContent = 'Waiting for ICE gathering...';
     await gatherIceCandidatesComplete(pcCamera, 8000);
 
-    // localDescription now contains gathered candidates (to the extent the browser includes them)
-    const localDesc = pcCamera.localDescription;
-    const payload = JSON.stringify(localDesc);
+    const payload = JSON.stringify(pcCamera.localDescription);
     showQRCode(payload);
     offerStatus.textContent = 'Offer QR shown. Share with Monitor device (scan).';
     console.log('Offer payload length', payload.length);
-  } catch (e) {
-    console.error(e);
-    alert('Failed to create offer: ' + e);
-    offerStatus.textContent = 'Status: error creating offer';
+
+  } catch (err) {
+    console.error('Failed to create offer:', err);
+    offerStatus.textContent = 'Error creating offer: ' + (err.message || err);
+    alert('Failed to create offer: ' + (err.message || err));
   }
 });
 
-// open scanner on Camera device to scan the Answer QR from Monitor
+// Camera: scan answer QR (or paste)
 scanAnswerBtn.addEventListener('click', () => {
-  if (!pcCamera) {
-    alert('Generate offer first before scanning an answer.');
-    return;
-  }
+  if (!pcCamera) { alert('Generate offer first.'); return; }
   localScannerBlock.classList.remove('hidden');
   startLocalScanner();
 });
-
 pasteAnswerBtn.addEventListener('click', async () => {
   const txt = prompt('Paste the answer JSON here:');
   if (!txt) return;
   await applyReceivedAnswer(txt, 'camera');
 });
 
-// ---------- Monitor side (scan offer, create answer, show answer QR) ----------
+// ---------- Monitor: scan offer, create answer ----------
 startScanOfferBtn.addEventListener('click', () => {
   offerScannerBlock.classList.remove('hidden');
   startRemoteScanner();
 });
-
 pasteOfferBtn.addEventListener('click', async () => {
   const txt = prompt('Paste the offer JSON here:');
   if (!txt) return;
   await applyReceivedOffer(txt);
 });
 
-// apply manual apply button (works both directions)
+// apply manual apply btn
 applyManualBtn.addEventListener('click', async () => {
   const text = manualBox.value.trim();
   if (!text) return alert('Manual box empty.');
-  // heuristics: check if text is offer or answer by looking at type field
   try {
     const parsed = JSON.parse(text);
     if (parsed.type === 'offer') {
-      // monitor applying camera's offer
       await applyReceivedOffer(text);
     } else if (parsed.type === 'answer') {
-      // camera applying monitor's answer
       await applyReceivedAnswer(text, 'camera');
     } else {
-      alert('Unknown SDP type. Paste the full offer (type: "offer") or answer (type: "answer").');
+      alert('Unknown SDP type. Must be "offer" or "answer".');
     }
   } catch (e) {
     alert('Invalid JSON: ' + e.message);
   }
 });
 
-// when monitor scans Offer -> create answer and show QR
 async function applyReceivedOffer(offerText) {
   monitorStatus.textContent = 'Applying offer...';
   try {
     const offer = JSON.parse(offerText);
+    console.log('Offer received. Creating pcMonitor');
+    if (pcMonitor) try{ pcMonitor.close(); }catch(e){}
     pcMonitor = new RTCPeerConnection({ iceServers: stunServers });
 
-    // when remote track arrives, attach to remoteVideo
+    // when remote track arrives -> attach to remoteVideo
     const remoteStream = new MediaStream();
     remoteVideo.srcObject = remoteStream;
     pcMonitor.ontrack = (ev) => {
-      ev.streams[0].getTracks().forEach(t => remoteStream.addTrack(t));
+      console.log('ontrack event', ev);
+      if (ev.streams && ev.streams[0]) {
+        ev.streams[0].getTracks().forEach(t => remoteStream.addTrack(t));
+      } else if (ev.track) {
+        remoteStream.addTrack(ev.track);
+      }
     };
 
-    pcMonitor.onconnectionstatechange = () => {
-      monitorStatus.textContent = 'Connection state: ' + pcMonitor.connectionState;
-    };
-    pcMonitor.oniceconnectionstatechange = () => {
-      monitorStatus.textContent = 'ICE state: ' + pcMonitor.iceConnectionState;
-    };
+    pcMonitor.onconnectionstatechange = () => { monitorStatus.textContent = 'Connection state: ' + pcMonitor.connectionState; console.log('pcMonitor connectionState', pcMonitor.connectionState); };
+    pcMonitor.oniceconnectionstatechange = () => { monitorStatus.textContent = 'ICE state: ' + pcMonitor.iceConnectionState; console.log('pcMonitor iceConnectionState', pcMonitor.iceConnectionState); };
 
     await pcMonitor.setRemoteDescription(offer);
-    // create answer
+
     const answer = await pcMonitor.createAnswer();
     await pcMonitor.setLocalDescription(answer);
 
-    monitorStatus.textContent = 'Waiting for ICE candidates...';
+    monitorStatus.textContent = 'Waiting for ICE gathering...';
     await gatherIceCandidatesComplete(pcMonitor, 8000);
 
     const payload = JSON.stringify(pcMonitor.localDescription);
-    // show answer as QR for camera to scan
     showQRCode(payload);
-    monitorStatus.textContent = 'Answer QR shown. Let Camera scan it (or paste).';
-    console.log('Answer payload length', payload.length);
-
-    // Also populate manual box so the user can copy/paste if needed
+    monitorStatus.textContent = 'Answer QR shown. Let Camera scan it.';
     manualBox.value = payload;
-    // stop remote scanner (if scanning)
     stopRemoteScanner();
     offerScannerBlock.classList.add('hidden');
+    console.log('Answer payload length', payload.length);
   } catch (e) {
-    console.error(e);
-    alert('Failed to apply offer/create answer: ' + e);
-    monitorStatus.textContent = 'Status: error';
+    console.error('Failed to apply offer / create answer:', e);
+    monitorStatus.textContent = 'Error: ' + (e.message || e);
+    alert('Failed to apply offer/create answer: ' + (e.message || e));
   }
 }
 
-// when camera scans answer -> setRemoteDescription(answer)
-async function applyReceivedAnswer(answerText, role = 'camera') {
+async function applyReceivedAnswer(answerText, role='camera') {
   try {
     const answer = JSON.parse(answerText);
     if (role === 'camera') {
-      if (!pcCamera) {
-        alert('Camera peer connection not present. Generate offer first.');
-        return;
-      }
+      if (!pcCamera) { alert('Camera peer connection not present. Generate offer first.'); return; }
       await pcCamera.setRemoteDescription(answer);
       offerStatus.textContent = 'Remote answer applied. Connecting...';
       manualBox.value = answerText;
-      // stop local scanner
       stopLocalScanner();
       localScannerBlock.classList.add('hidden');
-    } else if (role === 'monitor') {
-      if (!pcMonitor) {
-        alert('Monitor peer connection not present.');
-        return;
-      }
+    } else {
+      if (!pcMonitor) { alert('Monitor peer connection not present.'); return; }
       await pcMonitor.setRemoteDescription(answer);
       monitorStatus.textContent = 'Remote answer applied.';
     }
   } catch (e) {
-    console.error(e);
-    alert('Failed to apply answer: ' + e);
+    console.error('Failed to apply answer:', e);
+    alert('Failed to apply answer: ' + (e.message || e));
   }
 }
 
-// ---------- QR Scanners (using html5-qrcode) ----------
+// ---------- Scanners ----------
 async function startRemoteScanner() {
   if (remoteScanner) return;
-  const config = { fps: 10, qrbox: { width: 280, height: 200 }, aspectRatio: 1.333 };
-  remoteScanner = new Html5Qrcode(/* element id */ "remoteScanner");
+  remoteScanner = new Html5Qrcode("remoteScanner");
   try {
-    await remoteScanner.start(
-      { facingMode: "environment" },
-      config,
-      qrCodeMessage => {
-        // scanned an Offer from Camera
-        console.log("Scanned offer: length", qrCodeMessage.length);
-        // apply it
-        applyReceivedOffer(qrCodeMessage);
-      },
-      err => {
-        // console.log("scan error", err);
-      }
+    await remoteScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 280, height: 200 } },
+      qrCodeMessage => { console.log('Scanned offer len', qrCodeMessage.length); applyReceivedOffer(qrCodeMessage); },
+      err => {}
     );
-  } catch (e) {
-    console.error('Could not start remote scanner', e);
-    alert('Could not start scanner: ' + e);
-  }
+  } catch (e) { console.error('Could not start remote scanner', e); alert('Scanner start failed: '+e.message); }
 }
-
 async function stopRemoteScanner() {
   if (!remoteScanner) return;
-  try {
-    await remoteScanner.stop();
-  } catch (e) {
-    console.warn('stop remote scanner', e);
-  }
-  remoteScanner.clear();
+  try { await remoteScanner.stop(); } catch(e){ console.warn('stopRemoteScanner', e); }
+  try{ remoteScanner.clear(); } catch(e){}
   remoteScanner = null;
   offerScannerBlock.classList.add('hidden');
 }
@@ -507,56 +390,26 @@ async function startLocalScanner() {
   if (localScanner) return;
   localScanner = new Html5Qrcode("localScanner");
   try {
-    await localScanner.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 280, height: 200 }, aspectRatio: 1.333 },
-      async (decodedText) => {
-        console.log('Scanned answer:', decodedText.length);
-        await applyReceivedAnswer(decodedText, 'camera');
-      },
-      (err) => {}
+    await localScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 280, height: 200 } },
+      async (decodedText) => { console.log('Scanned answer len', decodedText.length); await applyReceivedAnswer(decodedText, 'camera'); },
+      err => {}
     );
-  } catch (e) {
-    console.error('Could not start local scanner', e);
-    alert('Could not start scanner: ' + e.message);
-  }
+  } catch (e) { console.error('Could not start local scanner', e); alert('Scanner start failed: '+e.message); }
 }
-
 async function stopLocalScanner() {
   if (!localScanner) return;
-  try {
-    await localScanner.stop();
-  } catch (e) {
-    console.warn('stop local scanner', e);
-  }
-  localScanner.clear();
+  try { await localScanner.stop(); } catch(e){ console.warn('stopLocalScanner', e); }
+  try{ localScanner.clear(); } catch(e){}
   localScanner = null;
   localScannerBlock.classList.add('hidden');
 }
 
-// stop both scanners
-function stopScanners() {
-  stopRemoteScanner();
-  stopLocalScanner();
-}
-
-// stop scanner buttons
+function stopScanners() { stopRemoteScanner(); stopLocalScanner(); }
 stopRemoteScannerBtn.addEventListener('click', stopRemoteScanner);
 stopLocalScannerBtn.addEventListener('click', stopLocalScanner);
 
-// cleanup on page unload
-window.addEventListener('pagehide', () => {
-  resetAll();
-});
-
-// bonus: let user paste the manual offer/answer into the system easily from the manualBox
-// (if manual box contains an offer we treat accordingly)
-document.getElementById('applyManual').addEventListener('click', () => {
-  // this is handled above; left for redundancy
-});
-
-// auto-detect scanned content size and warn if too large
-// (not required, but helpful)
+// cleanup
+window.addEventListener('pagehide', resetAll);
 </script>
 </body>
 </html>
