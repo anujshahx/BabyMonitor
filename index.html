@@ -1,193 +1,486 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Baby Monitor</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<!-- Libraries -->
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
-
-<style>
-body { font-family: sans-serif; text-align: center; background: #fafafa; margin: 0; padding: 1em; }
-video { width: 90%; max-width: 480px; margin: 1em auto; display: block; background: black; border-radius: 6px; }
-button { margin: 0.5em; padding: 0.7em 1.2em; border: none; background: #007bff; color: white; border-radius: 6px; cursor: pointer; }
-button:hover { background: #005ec2; }
-#qr { margin-top: 1em; }
-textarea { width: 90%; height: 100px; margin-top: 1em; }
-</style>
-</head>
-
-<body>
-<h2>📷 Baby Monitor</h2>
-<button id="cameraBtn">Start Camera Mode</button>
-<button id="monitorBtn">Start Monitor Mode</button>
-
-<video id="localVideo" autoplay muted playsinline></video>
-<video id="remoteVideo" autoplay playsinline></video>
-
-<div id="qr"></div>
-<button id="prevQR" style="display:none;">◀ Previous QR</button>
-<button id="nextQR" style="display:none;">Next QR ▶</button>
-<textarea id="manualBox" placeholder="Manual offer/answer text (if QR fails)"></textarea>
-
-<canvas id="scanCanvas" hidden></canvas>
-
-<script>
-const cameraBtn = document.getElementById('cameraBtn');
-const monitorBtn = document.getElementById('monitorBtn');
-const qrDiv = document.getElementById('qr');
-const manualBox = document.getElementById('manualBox');
-const prevQR = document.getElementById('prevQR');
-const nextQR = document.getElementById('nextQR');
-const localVideo = document.getElementById('localVideo');
-const remoteVideo = document.getElementById('remoteVideo');
-const scanCanvas = document.getElementById('scanCanvas');
-
-let pcCamera, pcMonitor;
-const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-
-// QR chunking
-let qrChunks = [];
-let currentQRIndex = 0;
-
-cameraBtn.onclick = startCameraMode;
-monitorBtn.onclick = startMonitorMode;
-prevQR.onclick = () => showQRChunk(currentQRIndex - 1);
-nextQR.onclick = () => showQRChunk(currentQRIndex + 1);
-
-async function startCameraMode() {
-  clearUI();
-  const stream = await navigator.mediaDevices.getUserMedia({ video:true,audio:true });
-  localVideo.srcObject = stream;
-
-  pcCamera = new RTCPeerConnection(servers);
-  stream.getTracks().forEach(t => pcCamera.addTrack(t, stream));
-
-  pcCamera.onicecandidate = e => {
-    if (e.candidate === null) {
-      const offer = JSON.stringify(pcCamera.localDescription);
-      generateChunks(offer);
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Baby Monitor</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
     }
-  };
+    h1 { text-align: center; color: #333; }
+    .step { 
+      background: white; 
+      padding: 15px; 
+      margin: 15px 0; 
+      border-radius: 8px;
+      border-left: 4px solid #007aff;
+    }
+    .step-number {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      background: #007aff;
+      color: white;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 30px;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    button {
+      width: 100%;
+      padding: 15px;
+      margin: 10px 0;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-primary { background: #007aff; color: white; }
+    .btn-secondary { background: #34c759; color: white; }
+    .btn-copy { background: #ff9500; color: white; }
+    .btn-danger { background: #ff3b30; color: white; }
+    input {
+      width: 100%;
+      padding: 15px;
+      margin: 10px 0;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 18px;
+      text-align: center;
+      font-family: monospace;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      padding: 10px;
+      margin: 10px 0;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 11px;
+      resize: vertical;
+    }
+    video {
+      width: 100%;
+      border-radius: 8px;
+      background: black;
+      margin: 10px 0;
+      min-height: 200px;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .status { 
+      padding: 15px; 
+      margin: 10px 0; 
+      border-radius: 8px; 
+      background: #e3f2fd; 
+      color: #1976d2;
+      text-align: center;
+      font-weight: 600;
+    }
+    .status.success { background: #d4edda; color: #155724; }
+    .status.error { background: #f8d7da; color: #721c24; }
+    .code-display {
+      font-size: 36px;
+      font-weight: bold;
+      text-align: center;
+      color: #007aff;
+      padding: 20px;
+      background: white;
+      border-radius: 12px;
+      margin: 20px 0;
+      letter-spacing: 4px;
+      font-family: monospace;
+    }
+    details {
+      margin: 10px 0;
+      padding: 10px;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <h1>📹 Baby Monitor</h1>
 
-  const offer = await pcCamera.createOffer();
-  await pcCamera.setLocalDescription(offer);
-}
+  <!-- Home Screen -->
+  <div id="home" class="panel active">
+    <button class="btn-primary" onclick="showCamera()">📷 Use as Camera</button>
+    <button class="btn-secondary" onclick="showMonitor()">📺 Use as Monitor</button>
+  </div>
 
-async function startMonitorMode() {
-  clearUI();
-  pcMonitor = new RTCPeerConnection(servers);
-  pcMonitor.ontrack = e => { remoteVideo.srcObject = e.streams[0]; };
+  <!-- Camera Panel -->
+  <div id="camera" class="panel">
+    <div class="step">
+      <span class="step-number">1</span>
+      <strong>Start your camera</strong>
+    </div>
+    <button class="btn-primary" onclick="startCamera()">Start Camera</button>
+    
+    <div id="cameraStep2" style="display:none;">
+      <div class="step">
+        <span class="step-number">2</span>
+        <strong>Share this code with Monitor</strong>
+      </div>
+      <div class="code-display" id="shareCode">------</div>
+      <button class="btn-copy" onclick="copyCode()">📋 Copy Code</button>
+      
+      <details>
+        <summary>Or copy full text manually</summary>
+        <textarea id="offerText" readonly onclick="this.select()"></textarea>
+        <button class="btn-copy" onclick="copyOffer()">📋 Copy Text</button>
+      </details>
+      
+      <div class="step">
+        <span class="step-number">3</span>
+        <strong>Enter code from Monitor</strong>
+      </div>
+      <input id="answerCode" type="text" placeholder="Enter code">
+      <button class="btn-secondary" onclick="fetchAndConnect()">✓ Connect with Code</button>
+      
+      <details>
+        <summary>Or paste text manually</summary>
+        <textarea id="answerInput" placeholder="Paste answer here..."></textarea>
+        <button class="btn-secondary" onclick="connectCamera()">✓ Connect</button>
+      </details>
+    </div>
 
-  // Create video element for scanning and show it
-  const scanVideo = document.createElement('video');
-  scanVideo.setAttribute('playsinline', true);
-  scanVideo.autoplay = true;
-  scanVideo.muted = true;
-  scanVideo.style.width = '90%';
-  scanVideo.style.maxWidth = '480px';
-  scanVideo.style.borderRadius = '6px';
-  document.body.insertBefore(scanVideo, qrDiv); // above QR
+    <div id="cameraStatus" class="status" style="display:none;"></div>
+    <video id="cameraVideo" autoplay muted playsinline></video>
+    
+    <button class="btn-danger" onclick="goHome()">← Back</button>
+  </div>
 
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    scanVideo.srcObject = stream;
-    await scanVideo.play(); // ensure camera is running
+  <!-- Monitor Panel -->
+  <div id="monitor" class="panel">
+    <div class="step">
+      <span class="step-number">1</span>
+      <strong>Enter code from Camera</strong>
+    </div>
+    <input id="offerCode" type="text" placeholder="Enter code">
+    <button class="btn-primary" onclick="fetchAndCreateAnswer()">Get Camera Feed</button>
 
-    // Canvas context with willReadFrequently
-    const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+    <details>
+      <summary>Or paste text manually</summary>
+      <textarea id="offerInput" placeholder="Paste offer here..."></textarea>
+      <button class="btn-primary" onclick="createAnswer()">Create Answer</button>
+    </details>
 
-    let scannedChunks = [];
+    <div id="monitorStep2" style="display:none;">
+      <div class="step">
+        <span class="step-number">2</span>
+        <strong>Share this code with Camera</strong>
+      </div>
+      <div class="code-display" id="answerCodeDisplay">------</div>
+      <button class="btn-copy" onclick="copyAnswerCode()">📋 Copy Code</button>
+      
+      <details>
+        <summary>Or copy text manually</summary>
+        <textarea id="answerText" readonly onclick="this.select()"></textarea>
+        <button class="btn-copy" onclick="copyAnswer()">📋 Copy Text</button>
+      </details>
+    </div>
 
-    async function scanLoop() {
-      if (scanVideo.readyState === scanVideo.HAVE_ENOUGH_DATA) {
-        scanCanvas.width = scanVideo.videoWidth;
-        scanCanvas.height = scanVideo.videoHeight;
-        scanCtx.drawImage(scanVideo, 0, 0, scanCanvas.width, scanCanvas.height);
-        const imgData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
-        const code = jsQR(imgData.data, imgData.width, imgData.height);
-        if(code){
-          scannedChunks.push(code.data);
-          console.log("Scanned QR chunk", scannedChunks.length);
-          alert(`Scanned chunk ${scannedChunks.length}. Scan next QR or finish.`);
-          const done = confirm("Finished scanning all QR chunks?");
-          if(done){
-            stream.getTracks().forEach(t => t.stop());
-            scanVideo.remove();
-            const fullText = scannedChunks.join('');
-            applyOffer(fullText);
-            return;
+    <div id="monitorStatus" class="status" style="display:none;"></div>
+    <video id="monitorVideo" autoplay playsinline></video>
+    
+    <button class="btn-danger" onclick="goHome()">← Back</button>
+  </div>
+
+  <script>
+    const config = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
+
+    let pc = null;
+    let localStream = null;
+    
+    const HASTEBIN_URL = 'https://www.toptal.com/developers/hastebin';
+    const HASTEBIN_TOKEN = 'c83104fd13c59a7ff1a12b959a0cef45cbb29a5dfa1e87cadd3f763ad62fec0fa5bb1c2f1e1a3e51b1bc94c8bedc7abdfbdc1e522c0e8639c0119e3483d53bfe';
+
+    function showPanel(panelId) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(panelId).classList.add('active');
+    }
+
+    function showCamera() { showPanel('camera'); }
+    function showMonitor() { showPanel('monitor'); }
+    function goHome() { 
+      if (pc) pc.close();
+      if (localStream) localStream.getTracks().forEach(t => t.stop());
+      location.reload();
+    }
+
+    function showStatus(id, msg, type = '') {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.className = 'status ' + type;
+      el.style.display = 'block';
+    }
+
+    function copyCode() {
+      const code = document.getElementById('shareCode').textContent;
+      navigator.clipboard.writeText(code);
+      showStatus('cameraStatus', '✅ Code copied!', 'success');
+    }
+
+    function copyAnswerCode() {
+      const code = document.getElementById('answerCodeDisplay').textContent;
+      navigator.clipboard.writeText(code);
+      showStatus('monitorStatus', '✅ Code copied!', 'success');
+    }
+
+    function copyOffer() {
+      const text = document.getElementById('offerText');
+      text.select();
+      document.execCommand('copy');
+      showStatus('cameraStatus', '✅ Text copied!', 'success');
+    }
+
+    function copyAnswer() {
+      const text = document.getElementById('answerText');
+      text.select();
+      document.execCommand('copy');
+      showStatus('monitorStatus', '✅ Text copied!', 'success');
+    }
+
+    async function uploadToHastebin(content) {
+      try {
+        const response = await fetch(`${HASTEBIN_URL}/documents`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+            'Authorization': `Bearer ${HASTEBIN_TOKEN}`
+          },
+          body: content
+        });
+        
+        if (!response.ok) throw new Error('Upload failed');
+        const data = await response.json();
+        return data.key;
+      } catch (err) {
+        console.error('Hastebin error:', err);
+        return null;
+      }
+    }
+
+    async function fetchFromHastebin(key) {
+      try {
+        const response = await fetch(`${HASTEBIN_URL}/raw/${key}`, {
+          headers: {
+            'Authorization': `Bearer ${HASTEBIN_TOKEN}`
+          }
+        });
+        if (!response.ok) throw new Error('Fetch failed');
+        return await response.text();
+      } catch (err) {
+        console.error('Hastebin fetch error:', err);
+        return null;
+      }
+    }
+
+    async function startCamera() {
+      try {
+        showStatus('cameraStatus', '📷 Starting camera...');
+        
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }, 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        
+        document.getElementById('cameraVideo').srcObject = localStream;
+        pc = new RTCPeerConnection(config);
+        
+        localStream.getTracks().forEach(track => {
+          pc.addTrack(track, localStream);
+        });
+
+        const iceCandidates = [];
+        pc.onicecandidate = e => {
+          if (e.candidate) iceCandidates.push(e.candidate);
+        };
+
+        pc.onicegatheringstatechange = async () => {
+          if (pc.iceGatheringState === 'complete') {
+            const offer = {
+              sdp: pc.localDescription,
+              candidates: iceCandidates
+            };
+            const offerJSON = JSON.stringify(offer);
+            document.getElementById('offerText').value = offerJSON;
+            document.getElementById('cameraStep2').style.display = 'block';
+            
+            showStatus('cameraStatus', '⏳ Generating code...', '');
+            document.getElementById('shareCode').textContent = 'Generating...';
+            
+            const key = await uploadToHastebin(offerJSON);
+            
+            if (key) {
+              document.getElementById('shareCode').textContent = key.toUpperCase();
+              showStatus('cameraStatus', '✅ Code ready! Share with Monitor.', 'success');
+            } else {
+              document.getElementById('shareCode').textContent = 'FAILED';
+              showStatus('cameraStatus', '⚠️ Code failed. Use manual method.', 'error');
+            }
+          }
+        };
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        
+      } catch (err) {
+        showStatus('cameraStatus', '❌ Error: ' + err.message, 'error');
+      }
+    }
+
+    async function fetchAndConnect() {
+      const code = document.getElementById('answerCode').value.trim().toLowerCase();
+      if (!code) {
+        showStatus('cameraStatus', '⚠️ Enter code first!', 'error');
+        return;
+      }
+
+      showStatus('cameraStatus', '⏳ Fetching...', '');
+      const answerJSON = await fetchFromHastebin(code);
+      
+      if (answerJSON) {
+        document.getElementById('answerInput').value = answerJSON;
+        await connectCamera();
+      } else {
+        showStatus('cameraStatus', '❌ Invalid code. Use manual method.', 'error');
+      }
+    }
+
+    async function connectCamera() {
+      try {
+        const input = document.getElementById('answerInput').value.trim();
+        if (!input) {
+          showStatus('cameraStatus', '⚠️ Paste answer first!', 'error');
+          return;
+        }
+
+        const answer = JSON.parse(input);
+        await pc.setRemoteDescription(answer.sdp);
+        
+        if (answer.candidates) {
+          for (const c of answer.candidates) {
+            await pc.addIceCandidate(c);
           }
         }
+
+        showStatus('cameraStatus', '✅ Connected!', 'success');
+      } catch (err) {
+        showStatus('cameraStatus', '❌ Error: ' + err.message, 'error');
       }
-      requestAnimationFrame(scanLoop);
     }
 
-    scanLoop();
-  } catch(err){
-    console.error("Camera for scanning not available:", err);
-    alert("Camera not available or permission denied: " + err.message);
-  }
-}
+    async function fetchAndCreateAnswer() {
+      const code = document.getElementById('offerCode').value.trim().toLowerCase();
+      if (!code) {
+        showStatus('monitorStatus', '⚠️ Enter code first!', 'error');
+        return;
+      }
 
-function clearUI() {
-  qrDiv.innerHTML="";
-  manualBox.value="";
-  qrChunks=[];
-  currentQRIndex=0;
-  prevQR.style.display="none";
-  nextQR.style.display="none";
-}
+      showStatus('monitorStatus', '⏳ Fetching...', '');
+      const offerJSON = await fetchFromHastebin(code);
+      
+      if (offerJSON) {
+        document.getElementById('offerInput').value = offerJSON;
+        await createAnswer();
+      } else {
+        showStatus('monitorStatus', '❌ Invalid code. Use manual method.', 'error');
+      }
+    }
 
-function generateChunks(text){
-  const compressed = LZString.compressToEncodedURIComponent(text);
-  const chunkSize = 800;
-  qrChunks=[];
-  for(let i=0;i<compressed.length;i+=chunkSize){
-    qrChunks.push(compressed.slice(i,i+chunkSize));
-  }
-  currentQRIndex=0;
-  showQRChunk(currentQRIndex);
-  console.log("QR chunks generated:", qrChunks.length);
-  manualBox.value = compressed; // fallback
-}
+    async function createAnswer() {
+      try {
+        const input = document.getElementById('offerInput').value.trim();
+        if (!input) {
+          showStatus('monitorStatus', '⚠️ Paste offer first!', 'error');
+          return;
+        }
 
-function showQRChunk(index){
-  if(index<0||index>=qrChunks.length) return;
-  qrDiv.innerHTML="";
-  new QRCode(qrDiv,{text:qrChunks[index],width:220,height:220,correctLevel:QRCode.CorrectLevel.M});
-  currentQRIndex=index;
-  prevQR.style.display=(currentQRIndex>0)?"inline":"none";
-  nextQR.style.display=(currentQRIndex<qrChunks.length-1)?"inline":"none";
-}
+        showStatus('monitorStatus', '📡 Connecting...');
 
-// Apply Offer (monitor)
-async function applyOffer(qrData){
-  try{
-    const jsonText = LZString.decompressFromEncodedURIComponent(qrData);
-    const offer = JSON.parse(jsonText);
-    await pcMonitor.setRemoteDescription(offer);
-    const answer = await pcMonitor.createAnswer();
-    await pcMonitor.setLocalDescription(answer);
-    generateChunks(JSON.stringify(pcMonitor.localDescription));
-  } catch(err){ console.error(err); alert(err); }
-}
+        const offer = JSON.parse(input);
+        pc = new RTCPeerConnection(config);
 
-// Apply Answer (camera)
-manualBox.addEventListener('change', async ()=>{
-  const txt=manualBox.value.trim();
-  if(!txt) return;
-  if(pcCamera&&!pcCamera.remoteDescription){
-    try{
-      const jsonText=LZString.decompressFromEncodedURIComponent(txt);
-      const answer = JSON.parse(jsonText);
-      await pcCamera.setRemoteDescription(answer);
-    } catch(err){ console.error(err); alert(err);}
-  }
-});
-</script>
+        pc.ontrack = e => {
+          document.getElementById('monitorVideo').srcObject = e.streams[0];
+          showStatus('monitorStatus', '✅ Receiving video!', 'success');
+        };
+
+        const iceCandidates = [];
+        pc.onicecandidate = e => {
+          if (e.candidate) iceCandidates.push(e.candidate);
+        };
+
+        pc.onicegatheringstatechange = async () => {
+          if (pc.iceGatheringState === 'complete') {
+            const answer = {
+              sdp: pc.localDescription,
+              candidates: iceCandidates
+            };
+            const answerJSON = JSON.stringify(answer);
+            document.getElementById('answerText').value = answerJSON;
+            document.getElementById('monitorStep2').style.display = 'block';
+            
+            document.getElementById('answerCodeDisplay').textContent = 'Generating...';
+            
+            const key = await uploadToHastebin(answerJSON);
+            
+            if (key) {
+              document.getElementById('answerCodeDisplay').textContent = key.toUpperCase();
+              showStatus('monitorStatus', '✅ Code ready! Share with Camera.', 'success');
+            } else {
+              document.getElementById('answerCodeDisplay').textContent = 'FAILED';
+              showStatus('monitorStatus', '⚠️ Code failed. Use manual method.', 'error');
+            }
+          }
+        };
+
+        await pc.setRemoteDescription(offer.sdp);
+
+        if (offer.candidates) {
+          for (const c of offer.candidates) {
+            await pc.addIceCandidate(c);
+          }
+        }
+
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+      } catch (err) {
+        showStatus('monitorStatus', '❌ Error: ' + err.message, 'error');
+      }
+    }
+  </script>
 </body>
 </html>
