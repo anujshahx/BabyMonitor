@@ -4,9 +4,13 @@
   <meta charset="UTF-8">
   <title>Baby Monitor</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+
   <style>
     body {
       font-family: sans-serif;
@@ -30,6 +34,7 @@
       background: #007bff;
       color: white;
       border-radius: 6px;
+      cursor: pointer;
     }
     button:hover {
       background: #005ec2;
@@ -44,6 +49,7 @@
     }
   </style>
 </head>
+
 <body>
   <h2>📷 Baby Monitor</h2>
   <button id="cameraBtn">Start Camera Mode</button>
@@ -141,26 +147,34 @@
     function showQRCode(text) {
       qrDiv.innerHTML = "";
       try {
-        // Compress → Base64 → URI-safe
-        const compressed = pako.deflate(text);
-        const b64 = btoa(String.fromCharCode(...compressed))
-          .replace(/\+/g, '-')
-          .replace(/\//g, '_')
-          .replace(/=+$/, '');
+        // Primary compression: LZString
+        let compressed = LZString.compressToEncodedURIComponent(text);
+        console.log("Original:", text.length, "LZ compressed:", compressed.length);
 
-        if (b64.length > 1800) {
-          throw new Error("QR data too long");
+        // Fallback to Pako if LZString fails
+        if (!compressed || compressed.length > 1800) {
+          console.log("Using Pako fallback...");
+          const deflated = pako.deflateRaw(text);
+          const b64 = btoa(String.fromCharCode(...deflated))
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
+          compressed = b64;
+        }
+
+        if (compressed.length > 1800) {
+          throw new Error("QR data too long (" + compressed.length + ")");
         }
 
         new QRCode(qrDiv, {
-          text: b64,
+          text: compressed,
           width: 220,
           height: 220,
           correctLevel: QRCode.CorrectLevel.M
         });
 
-        manualBox.value = b64;
-        console.log("✅ QR generated. Length:", b64.length);
+        manualBox.value = compressed;
+        console.log("✅ QR generated successfully, length:", compressed.length);
       } catch (err) {
         console.error("QR render failed", err);
         qrDiv.textContent = "QR generation failed: " + err.message + ". Use manual copy/paste.";
@@ -170,15 +184,17 @@
 
     async function applyOffer(qrData) {
       try {
-        // Try decode
         let jsonText;
+
+        // Try LZString first
         try {
+          jsonText = LZString.decompressFromEncodedURIComponent(qrData);
+          if (!jsonText) throw new Error("Empty after LZ decompress");
+        } catch {
+          console.log("Fallback: pako decode");
           const bin = atob(qrData.replace(/-/g, '+').replace(/_/g, '/'));
           const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
           jsonText = pako.inflate(bytes, { to: 'string' });
-        } catch (e) {
-          console.log("Offer not compressed or already JSON");
-          jsonText = qrData;
         }
 
         const offer = JSON.parse(jsonText);
@@ -198,12 +214,10 @@
       }
     }
 
-    // Manual apply (if QR scan fails)
     manualBox.addEventListener('change', async () => {
       const txt = manualBox.value.trim();
       if (!txt) return;
 
-      // If camera is waiting for answer
       if (pcCamera && !pcCamera.remoteDescription) {
         await applyAnswer(txt);
       } else if (pcMonitor && !pcMonitor.remoteDescription) {
@@ -215,11 +229,12 @@
       try {
         let jsonText;
         try {
+          jsonText = LZString.decompressFromEncodedURIComponent(answerText);
+          if (!jsonText) throw new Error("Empty after LZ decompress");
+        } catch {
           const bin = atob(answerText.replace(/-/g, '+').replace(/_/g, '/'));
           const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
           jsonText = pako.inflate(bytes, { to: 'string' });
-        } catch (e) {
-          jsonText = answerText;
         }
 
         const answer = JSON.parse(jsonText);
