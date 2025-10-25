@@ -83,32 +83,37 @@ async function startMonitorMode() {
   pcMonitor = new RTCPeerConnection(servers);
   pcMonitor.ontrack = e => { remoteVideo.srcObject = e.streams[0]; };
 
+  // Create video element for scanning
   const scanVideo = document.createElement('video');
   scanVideo.setAttribute('playsinline', true);
   scanVideo.autoplay = true;
   scanVideo.muted = true;
+  scanVideo.style.width = '1px';
+  scanVideo.style.height = '1px';
+  document.body.appendChild(scanVideo);
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
     scanVideo.srcObject = stream;
+    await scanVideo.play(); // wait until camera is running
 
     let scannedChunks = [];
 
-    function scanLoop() {
+    async function scanLoop() {
       if (scanVideo.readyState === scanVideo.HAVE_ENOUGH_DATA) {
         scanCanvas.width = scanVideo.videoWidth;
         scanCanvas.height = scanVideo.videoHeight;
         ctx.drawImage(scanVideo, 0, 0, scanCanvas.width, scanCanvas.height);
-        const imgData = ctx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
+        const imgData = ctx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
         const code = jsQR(imgData.data, imgData.width, imgData.height);
         if(code){
           scannedChunks.push(code.data);
           console.log("Scanned QR chunk", scannedChunks.length);
           alert(`Scanned chunk ${scannedChunks.length}. Scan next QR or finish.`);
-          // If user scanned all chunks, reconstruct manually:
           const done = confirm("Finished scanning all QR chunks?");
           if(done){
-            stream.getTracks().forEach(t=>t.stop());
+            stream.getTracks().forEach(t => t.stop());
+            scanVideo.remove();
             const fullText = scannedChunks.join('');
             applyOffer(fullText);
             return;
@@ -117,8 +122,12 @@ async function startMonitorMode() {
       }
       requestAnimationFrame(scanLoop);
     }
+
     scanLoop();
-  } catch(err){ console.error(err); }
+  } catch(err){
+    console.error("Camera for scanning not available:", err);
+    alert("Camera not available or permission denied: " + err.message);
+  }
 }
 
 function clearUI() {
