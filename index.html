@@ -1,249 +1,181 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Baby Monitor</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <!-- Libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+<meta charset="UTF-8">
+<title>Baby Monitor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      background: #fafafa;
-      margin: 0;
-      padding: 1em;
-    }
-    video {
-      width: 90%;
-      max-width: 480px;
-      margin: 1em auto;
-      display: block;
-      background: black;
-      border-radius: 6px;
-    }
-    button {
-      margin: 0.5em;
-      padding: 0.7em 1.2em;
-      border: none;
-      background: #007bff;
-      color: white;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #005ec2;
-    }
-    #qr {
-      margin-top: 1em;
-    }
-    textarea {
-      width: 90%;
-      height: 100px;
-      margin-top: 1em;
-    }
-  </style>
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+
+<style>
+body { font-family: sans-serif; text-align: center; background: #fafafa; margin: 0; padding: 1em; }
+video { width: 90%; max-width: 480px; margin: 1em auto; display: block; background: black; border-radius: 6px; }
+button { margin: 0.5em; padding: 0.7em 1.2em; border: none; background: #007bff; color: white; border-radius: 6px; cursor: pointer; }
+button:hover { background: #005ec2; }
+#qr { margin-top: 1em; }
+textarea { width: 90%; height: 100px; margin-top: 1em; }
+</style>
 </head>
 
 <body>
-  <h2>📷 Baby Monitor</h2>
-  <button id="cameraBtn">Start Camera Mode</button>
-  <button id="monitorBtn">Start Monitor Mode</button>
+<h2>📷 Baby Monitor</h2>
+<button id="cameraBtn">Start Camera Mode</button>
+<button id="monitorBtn">Start Monitor Mode</button>
 
-  <video id="localVideo" autoplay muted playsinline></video>
-  <video id="remoteVideo" autoplay playsinline></video>
+<video id="localVideo" autoplay muted playsinline></video>
+<video id="remoteVideo" autoplay playsinline></video>
 
-  <div id="qr"></div>
-  <textarea id="manualBox" placeholder="Manual offer/answer text (if QR fails)"></textarea>
+<div id="qr"></div>
+<button id="prevQR" style="display:none;">◀ Previous QR</button>
+<button id="nextQR" style="display:none;">Next QR ▶</button>
+<textarea id="manualBox" placeholder="Manual offer/answer text (if QR fails)"></textarea>
 
-  <canvas id="scanCanvas" hidden></canvas>
+<canvas id="scanCanvas" hidden></canvas>
 
-  <script>
-    const cameraBtn = document.getElementById('cameraBtn');
-    const monitorBtn = document.getElementById('monitorBtn');
-    const qrDiv = document.getElementById('qr');
-    const manualBox = document.getElementById('manualBox');
-    const localVideo = document.getElementById('localVideo');
-    const remoteVideo = document.getElementById('remoteVideo');
+<script>
+const cameraBtn = document.getElementById('cameraBtn');
+const monitorBtn = document.getElementById('monitorBtn');
+const qrDiv = document.getElementById('qr');
+const manualBox = document.getElementById('manualBox');
+const prevQR = document.getElementById('prevQR');
+const nextQR = document.getElementById('nextQR');
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+const scanCanvas = document.getElementById('scanCanvas');
+const ctx = scanCanvas.getContext('2d');
 
-    let pcCamera, pcMonitor;
+let pcCamera, pcMonitor;
+const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
-    const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+// QR chunking
+let qrChunks = [];
+let currentQRIndex = 0;
 
-    cameraBtn.onclick = startCameraMode;
-    monitorBtn.onclick = startMonitorMode;
+cameraBtn.onclick = startCameraMode;
+monitorBtn.onclick = startMonitorMode;
+prevQR.onclick = () => showQRChunk(currentQRIndex - 1);
+nextQR.onclick = () => showQRChunk(currentQRIndex + 1);
 
-    async function startCameraMode() {
-      clearUI();
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localVideo.srcObject = stream;
+async function startCameraMode() {
+  clearUI();
+  const stream = await navigator.mediaDevices.getUserMedia({ video:true,audio:true });
+  localVideo.srcObject = stream;
 
-      pcCamera = new RTCPeerConnection(servers);
-      stream.getTracks().forEach(t => pcCamera.addTrack(t, stream));
+  pcCamera = new RTCPeerConnection(servers);
+  stream.getTracks().forEach(t => pcCamera.addTrack(t, stream));
 
-      pcCamera.onicecandidate = e => {
-        if (e.candidate === null) {
-          const offer = JSON.stringify(pcCamera.localDescription);
-          showQRCode(offer);
-        }
-      };
-
-      const offer = await pcCamera.createOffer();
-      await pcCamera.setLocalDescription(offer);
+  pcCamera.onicecandidate = e => {
+    if (e.candidate === null) {
+      const offer = JSON.stringify(pcCamera.localDescription);
+      generateChunks(offer);
     }
+  };
 
-    async function startMonitorMode() {
-      clearUI();
-      pcMonitor = new RTCPeerConnection(servers);
+  const offer = await pcCamera.createOffer();
+  await pcCamera.setLocalDescription(offer);
+}
 
-      pcMonitor.ontrack = e => {
-        remoteVideo.srcObject = e.streams[0];
-      };
+async function startMonitorMode() {
+  clearUI();
+  pcMonitor = new RTCPeerConnection(servers);
+  pcMonitor.ontrack = e => { remoteVideo.srcObject = e.streams[0]; };
 
-      // Try QR scanning
-      const scanCanvas = document.getElementById('scanCanvas');
-      const ctx = scanCanvas.getContext('2d');
-      const scanVideo = document.createElement('video');
-      scanVideo.setAttribute('playsinline', true);
-      scanVideo.autoplay = true;
-      scanVideo.muted = true;
+  const scanVideo = document.createElement('video');
+  scanVideo.setAttribute('playsinline', true);
+  scanVideo.autoplay = true;
+  scanVideo.muted = true;
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        scanVideo.srcObject = stream;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    scanVideo.srcObject = stream;
 
-        function scanLoop() {
-          if (scanVideo.readyState === scanVideo.HAVE_ENOUGH_DATA) {
-            scanCanvas.width = scanVideo.videoWidth;
-            scanCanvas.height = scanVideo.videoHeight;
-            ctx.drawImage(scanVideo, 0, 0, scanCanvas.width, scanCanvas.height);
-            const imgData = ctx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
-            const code = jsQR(imgData.data, imgData.width, imgData.height);
-            if (code) {
-              console.log("QR detected");
-              stream.getTracks().forEach(t => t.stop());
-              applyOffer(code.data);
-              return;
-            }
+    let scannedChunks = [];
+
+    function scanLoop() {
+      if (scanVideo.readyState === scanVideo.HAVE_ENOUGH_DATA) {
+        scanCanvas.width = scanVideo.videoWidth;
+        scanCanvas.height = scanVideo.videoHeight;
+        ctx.drawImage(scanVideo, 0, 0, scanCanvas.width, scanCanvas.height);
+        const imgData = ctx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
+        const code = jsQR(imgData.data, imgData.width, imgData.height);
+        if(code){
+          scannedChunks.push(code.data);
+          console.log("Scanned QR chunk", scannedChunks.length);
+          alert(`Scanned chunk ${scannedChunks.length}. Scan next QR or finish.`);
+          // If user scanned all chunks, reconstruct manually:
+          const done = confirm("Finished scanning all QR chunks?");
+          if(done){
+            stream.getTracks().forEach(t=>t.stop());
+            const fullText = scannedChunks.join('');
+            applyOffer(fullText);
+            return;
           }
-          requestAnimationFrame(scanLoop);
         }
-        scanLoop();
-      } catch (err) {
-        console.error("Camera for scanning not available:", err);
       }
+      requestAnimationFrame(scanLoop);
     }
+    scanLoop();
+  } catch(err){ console.error(err); }
+}
 
-    function clearUI() {
-      qrDiv.innerHTML = "";
-      manualBox.value = "";
-    }
+function clearUI() {
+  qrDiv.innerHTML="";
+  manualBox.value="";
+  qrChunks=[];
+  currentQRIndex=0;
+  prevQR.style.display="none";
+  nextQR.style.display="none";
+}
 
-    function showQRCode(text) {
-      qrDiv.innerHTML = "";
-      try {
-        // Primary compression: LZString
-        let compressed = LZString.compressToEncodedURIComponent(text);
-        console.log("Original:", text.length, "LZ compressed:", compressed.length);
+function generateChunks(text){
+  const compressed = LZString.compressToEncodedURIComponent(text);
+  const chunkSize = 800;
+  qrChunks=[];
+  for(let i=0;i<compressed.length;i+=chunkSize){
+    qrChunks.push(compressed.slice(i,i+chunkSize));
+  }
+  currentQRIndex=0;
+  showQRChunk(currentQRIndex);
+  console.log("QR chunks generated:", qrChunks.length);
+  manualBox.value = compressed; // fallback
+}
 
-        // Fallback to Pako if LZString fails
-        if (!compressed || compressed.length > 1800) {
-          console.log("Using Pako fallback...");
-          const deflated = pako.deflateRaw(text);
-          const b64 = btoa(String.fromCharCode(...deflated))
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=+$/, '');
-          compressed = b64;
-        }
+function showQRChunk(index){
+  if(index<0||index>=qrChunks.length) return;
+  qrDiv.innerHTML="";
+  new QRCode(qrDiv,{text:qrChunks[index],width:220,height:220,correctLevel:QRCode.CorrectLevel.M});
+  currentQRIndex=index;
+  prevQR.style.display=(currentQRIndex>0)?"inline":"none";
+  nextQR.style.display=(currentQRIndex<qrChunks.length-1)?"inline":"none";
+}
 
-        if (compressed.length > 1800) {
-          throw new Error("QR data too long (" + compressed.length + ")");
-        }
+// Apply Offer (monitor)
+async function applyOffer(qrData){
+  try{
+    const jsonText = LZString.decompressFromEncodedURIComponent(qrData);
+    const offer = JSON.parse(jsonText);
+    await pcMonitor.setRemoteDescription(offer);
+    const answer = await pcMonitor.createAnswer();
+    await pcMonitor.setLocalDescription(answer);
+    generateChunks(JSON.stringify(pcMonitor.localDescription));
+  } catch(err){ console.error(err); alert(err); }
+}
 
-        new QRCode(qrDiv, {
-          text: compressed,
-          width: 220,
-          height: 220,
-          correctLevel: QRCode.CorrectLevel.M
-        });
-
-        manualBox.value = compressed;
-        console.log("✅ QR generated successfully, length:", compressed.length);
-      } catch (err) {
-        console.error("QR render failed", err);
-        qrDiv.textContent = "QR generation failed: " + err.message + ". Use manual copy/paste.";
-        manualBox.value = text;
-      }
-    }
-
-    async function applyOffer(qrData) {
-      try {
-        let jsonText;
-
-        // Try LZString first
-        try {
-          jsonText = LZString.decompressFromEncodedURIComponent(qrData);
-          if (!jsonText) throw new Error("Empty after LZ decompress");
-        } catch {
-          console.log("Fallback: pako decode");
-          const bin = atob(qrData.replace(/-/g, '+').replace(/_/g, '/'));
-          const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
-          jsonText = pako.inflate(bytes, { to: 'string' });
-        }
-
-        const offer = JSON.parse(jsonText);
-        await pcMonitor.setRemoteDescription(offer);
-        const answer = await pcMonitor.createAnswer();
-        await pcMonitor.setLocalDescription(answer);
-
-        pcMonitor.onicecandidate = e => {
-          if (e.candidate === null) {
-            const answerStr = JSON.stringify(pcMonitor.localDescription);
-            showQRCode(answerStr);
-          }
-        };
-      } catch (err) {
-        console.error("Failed to apply offer:", err);
-        alert("Error applying offer: " + err.message);
-      }
-    }
-
-    manualBox.addEventListener('change', async () => {
-      const txt = manualBox.value.trim();
-      if (!txt) return;
-
-      if (pcCamera && !pcCamera.remoteDescription) {
-        await applyAnswer(txt);
-      } else if (pcMonitor && !pcMonitor.remoteDescription) {
-        await applyOffer(txt);
-      }
-    });
-
-    async function applyAnswer(answerText) {
-      try {
-        let jsonText;
-        try {
-          jsonText = LZString.decompressFromEncodedURIComponent(answerText);
-          if (!jsonText) throw new Error("Empty after LZ decompress");
-        } catch {
-          const bin = atob(answerText.replace(/-/g, '+').replace(/_/g, '/'));
-          const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
-          jsonText = pako.inflate(bytes, { to: 'string' });
-        }
-
-        const answer = JSON.parse(jsonText);
-        await pcCamera.setRemoteDescription(answer);
-      } catch (err) {
-        console.error("Failed to apply answer:", err);
-        alert("Error applying answer: " + err.message);
-      }
-    }
-  </script>
+// Apply Answer (camera)
+manualBox.addEventListener('change', async ()=>{
+  const txt=manualBox.value.trim();
+  if(!txt) return;
+  if(pcCamera&&!pcCamera.remoteDescription){
+    try{
+      const jsonText=LZString.decompressFromEncodedURIComponent(txt);
+      const answer = JSON.parse(jsonText);
+      await pcCamera.setRemoteDescription(answer);
+    } catch(err){ console.error(err); alert(err);}
+  }
+});
+</script>
 </body>
 </html>
