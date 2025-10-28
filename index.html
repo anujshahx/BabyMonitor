@@ -33,7 +33,7 @@
     .status.success { background: #e8f7ee; color: #146c2e; border: 1px solid #bfe7cb; }
     .status.error { background: #fde8ea; color: #821d2a; border: 1px solid #f3c2c8; }
     .status.info { background: #eaf2fd; color: #174aa7; border: 1px solid #c8dbfb; }
-    textarea, input[type="text"] {
+    textarea {
       width: 100%; padding: 10px 12px; margin: 10px 0; border: 2px solid #e5e7eb; border-radius: 10px;
       background: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; resize: vertical;
     }
@@ -126,20 +126,26 @@
   </div>
 
   <script>
-    // STUN only (works on LAN/Wi‑Fi); add TURN for internet NAT traversal if needed
+    // STUN only; add TURN for internet NAT traversal if needed
     const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
 
     // State
     let pc = null;
-    let localStream = null;            // camera device media
-    let cameraAudioTrack = null;       // camera mic track reference (for smart mute on talkback)
-    let monitorMicStream = null;       // monitor mic stream
-    let monitorMicTrack = null;        // monitor mic track ref
-    let dataChannel = null;            // control DataChannel
-    let pingTimer = null;              // persistent ping loop (monitor)
-    let audioCtx = null;               // single Web Audio context on camera (unlocked by user)
-    let gain = null;                   // shared gain node
-    let playingNode = null;            // current AudioNode source
+    let localStream = null;            // camera device
+    let cameraAudioTrack = null;       // camera mic (optional use)
+    let monitorMicStream = null;       // monitor talk-back
+    let monitorMicTrack = null;        // monitor talk-back track
+    let dataChannel = null;            // ctrl channel
+    let pingTimer = null;              // monitor handshake pinger
+
+    // Web Audio state (camera phone)
+    let audioCtx = null;
+    let gain = null;
+    let currentOsc = null;   // active OscillatorNode (melody note)
+    let currentSrc = null;   // active AudioBufferSourceNode (noise/rain)
+    let melodyTimer = null;  // timeout id for next note
+    let melodyActive = false;
+
     const log = (...a) => console.log('[BM]', ...a);
 
     // UI helpers
@@ -175,14 +181,11 @@
 
     async function startCamera(){
       try {
-        // Get camera with audio; user gesture unlocks audio context here
+        // Get camera with audio; user gesture here helps unlock audio later
         localStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'environment', width: {ideal:1920}, height: {ideal:1080} },
           audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }
         });
-
-        // Prime / unlock Web Audio on camera (required on mobile platforms)
-        unlockAudio();
 
         const camVideo = document.getElementById('cameraVideo');
         camVideo.srcObject = localStream;
@@ -191,12 +194,11 @@
 
         pc = new RTCPeerConnection(rtcConfig);
 
-        // IMPORTANT: create DataChannel on the OFFERER (camera) BEFORE createOffer
+        // Create DataChannel on OFFERER before createOffer
         dataChannel = pc.createDataChannel('ctrl');
         dataChannel.onopen = () => log('Camera DC open');
         dataChannel.onclose = () => log('Camera DC close');
         dataChannel.onerror = (e) => log('Camera DC error', e);
-        // Handle commands sent from monitor just in case
         dataChannel.onmessage = (ev) => {
           try {
             const msg = JSON.parse(ev.data);
@@ -210,17 +212,16 @@
         // Add camera tracks
         localStream.getTracks().forEach(tr => pc.addTrack(tr, localStream));
 
-        // Remote audio from monitor (talk-back) will play here
+        // Remote audio from monitor (talk-back)
         pc.ontrack = (e) => {
           if (e.track.kind === 'audio' && e.streams[0]) {
             const ra = document.getElementById('remoteAudio');
             ra.srcObject = e.streams[0];
-            // ensure play attempt
             ra.play().catch(()=>{});
           }
         };
 
-        // ICE gather to dump full offer package
+        // ICE gather → export offer pkg
         const gathered = [];
         pc.onicecandidate = (ev)=>{ if (ev.candidate) gathered.push(ev.candidate); };
         pc.onicegatheringstatechange = ()=>{
@@ -268,7 +269,6 @@
           log('Monitor received DC', dataChannel.label);
           dataChannel.onopen = ()=> {
             log('Monitor DC open');
-            // start persistent pings until "ready"
             startPinging();
           };
           dataChannel.onmessage = (e)=>{
@@ -285,7 +285,7 @@
           dataChannel.onerror = (e)=> log('Monitor DC error', e);
         };
 
-        // Fallback: if fully connected and DC is open but no ready arrived, enable anyway
+        // Fallback: enable if connected and DC open
         pc.onconnectionstatechange = ()=>{
           log('PC state', pc.connectionState);
           if ((pc.connectionState === 'connected' || pc.connectionState === 'completed') && dataChannel && dataChannel.readyState === 'open'){
@@ -303,7 +303,7 @@
           }
         };
 
-        // Add monitor mic (muted by default) for push-to-talk
+        // Add monitor mic (muted by default)
         try {
           monitorMicStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
           monitorMicTrack = monitorMicStream.getAudioTracks()[0];
@@ -313,7 +313,7 @@
           log('Monitor mic denied', e);
         }
 
-        // ICE gather to produce answer package
+        // ICE gather → export answer pkg
         const gathered = [];
         pc.onicecandidate = (ev)=>{ if (ev.candidate) gathered.push(ev.candidate); };
         pc.onicegatheringstatechange = ()=>{
@@ -364,7 +364,6 @@
       const btn = document.getElementById('micBtn');
       btn.classList.add('active'); btn.textContent = '🔴';
       if (monitorMicTrack) monitorMicTrack.enabled = true;
-      // optional: mute camera mic to avoid feedback (cameraAudioTrack only exists on camera device)
     }
     function stopTalking(){
       const btn = document.getElementById('micBtn');
@@ -372,16 +371,14 @@
       if (monitorMicTrack) monitorMicTrack.enabled = false;
     }
 
-    // Sounds (monitor sends commands; camera generates audio)
+    // Monitor commands → Camera sound engine
     function playSound(el, kind){
       if (!dataChannel || dataChannel.readyState !== 'open') {
         showErr('monitorStatus','Connection not ready yet.');
         return;
       }
-      // UI highlight
       document.querySelectorAll('.sound-btn:not(.stop)').forEach(b=> b.classList.remove('active'));
       el.classList.add('active');
-
       try { dataChannel.send(JSON.stringify({ action:'play', sound: kind })); } catch {}
       showOk('monitorStatus','Playing '+ el.textContent.replaceAll('\n',' ').trim());
     }
@@ -393,36 +390,35 @@
       showInfo('monitorStatus','Sound stopped.');
     }
 
-    // CAMERA: Web Audio generation (single unlocked AudioContext)
-    function unlockAudio(){
-      try {
-        if (audioCtx && audioCtx.state !== 'closed') {
-          // Some browsers start suspended; resume on user gesture
-          if (audioCtx.state === 'suspended') audioCtx.resume();
-          return;
-        }
+    // CAMERA: Web Audio helpers (exclusive playback + reliable stop)
+    async function ensureAudioRunning() {
+      if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         gain = audioCtx.createGain();
         gain.gain.value = 0.28;
         gain.connect(audioCtx.destination);
-
-        // iOS unlock: play a silent buffer once under user gesture
-        const buf = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
-        const src = audioCtx.createBufferSource();
-        src.buffer = buf; src.connect(gain); src.start(0);
-      } catch(e){ log('Audio unlock error', e); }
+      }
+      if (audioCtx.state === 'suspended') {
+        try { await audioCtx.resume(); } catch {}
+      }
     }
 
-    function stopSoundOnCamera(){
-      try { if (playingNode && playingNode.stop) playingNode.stop(0); } catch {}
-      try { if (playingNode && playingNode.disconnect) playingNode.disconnect(); } catch {}
-      playingNode = null;
+    function stopSoundOnCamera() {
+      melodyActive = false;
+      if (melodyTimer) { try { clearTimeout(melodyTimer); } catch{} melodyTimer = null; }
+
+      try { if (currentOsc) { currentOsc.onended = null; currentOsc.stop(0); } } catch{}
+      try { if (currentOsc) currentOsc.disconnect(); } catch{}
+      currentOsc = null;
+
+      try { if (currentSrc) { currentSrc.onended = null; currentSrc.stop(0); } } catch{}
+      try { if (currentSrc) currentSrc.disconnect(); } catch{}
+      currentSrc = null;
     }
 
-    function playSoundOnCamera(kind){
-      if (!audioCtx) unlockAudio();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      stopSoundOnCamera();
+    async function playSoundOnCamera(kind) {
+      await ensureAudioRunning();
+      stopSoundOnCamera(); // guarantee exclusivity
 
       if (kind === 'whitenoise') return playWhiteNoise();
       if (kind === 'rain') return playRain();
@@ -430,46 +426,65 @@
       if (kind === 'lullaby2') return playMelody([329.63,293.66,293.66,329.63,293.66,261.63,293.66,329.63,329.63,293.66], 0.52, 620);
     }
 
-    function playMelody(notes, noteDur=0.5, gapMs=600){
+    function playMelody(notes, noteDur = 0.5, gapMs = 620) {
+      melodyActive = true;
       let i = 0;
-      let canceled = false;
-      function step(){
-        if (canceled) return;
+
+      const step = () => {
+        if (!melodyActive) return;
+
         const osc = audioCtx.createOscillator();
         osc.type = 'sine';
         osc.frequency.value = notes[i];
         osc.connect(gain);
+        currentOsc = osc;
+
+        const stopAt = audioCtx.currentTime + noteDur;
         osc.start();
-        osc.stop(audioCtx.currentTime + noteDur);
-        playingNode = osc;
-        i = (i+1) % notes.length;
-        setTimeout(()=>{ if (!canceled) step(); }, gapMs);
-      }
+        // stop() immediately or at stopAt; here we schedule the exact stop time for smoother envelope
+        osc.stop(stopAt); // per API, stop schedules immediate or future stop reliably [web:204]
+
+        osc.onended = () => {
+          if (!melodyActive) return;
+          i = (i + 1) % notes.length;
+          melodyTimer = setTimeout(step, gapMs);
+        };
+      };
+
       step();
-      // Return a cancel handle
-      playingNode = { stop(){ canceled = true; } };
     }
 
-    function playWhiteNoise(){
+    function playWhiteNoise() {
       const frames = audioCtx.sampleRate * 2;
       const buf = audioCtx.createBuffer(1, frames, audioCtx.sampleRate);
       const ch = buf.getChannelData(0);
-      for (let i=0;i<frames;i++){ ch[i] = Math.random()*2-1; }
+      for (let i = 0; i < frames; i++) ch[i] = Math.random() * 2 - 1;
+
       const src = audioCtx.createBufferSource();
-      src.buffer = buf; src.loop = true; src.connect(gain); src.start(0);
-      playingNode = src;
+      src.buffer = buf;
+      src.loop = true; // loop until stopped
+      src.connect(gain);
+      src.start(0);
+      currentSrc = src; // AudioBufferSourceNode is a one-shot; keep handle to stop() it [web:223]
     }
 
-    function playRain(){
+    function playRain() {
       const frames = audioCtx.sampleRate * 2;
       const buf = audioCtx.createBuffer(1, frames, audioCtx.sampleRate);
       const ch = buf.getChannelData(0);
-      for (let i=0;i<frames;i++){ ch[i] = (Math.random()*2-1) * 0.5; }
+      for (let i = 0; i < frames; i++) ch[i] = (Math.random() * 2 - 1) * 0.5;
+
       const lp = audioCtx.createBiquadFilter();
-      lp.type = 'lowpass'; lp.frequency.value = 900;
+      lp.type = 'lowpass';
+      lp.frequency.value = 900;
+
       const src = audioCtx.createBufferSource();
-      src.buffer = buf; src.loop = true; src.connect(lp); lp.connect(gain); src.start(0);
-      playingNode = src;
+      src.buffer = buf;
+      src.loop = true;
+      src.connect(lp);
+      lp.connect(gain);
+      src.start(0);
+      currentSrc = src; // one-shot node; keep handle to stop() [web:223]
     }
   </script>
 </body>
