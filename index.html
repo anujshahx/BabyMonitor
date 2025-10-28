@@ -2,300 +2,758 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta
+    name="viewport"
+    content="user-scalable=no, width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
   <title>Baby Monitor</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* App chrome: no scroll, fixed full-viewport layout */
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden; /* no scroll anywhere */
+      background: #0f1025;
+    }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      background: linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-      min-height: 100vh; padding: 20px; display: flex; align-items: center; justify-content: center;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #111827;
     }
-    .container { max-width: 600px; width: 100%; background: #fff; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.25); overflow: hidden; }
-    .header { background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; padding: 28px; text-align: center; }
-    .header h1 { font-size: 28px; font-weight: 800; margin-bottom: 6px; }
-    .content { padding: 24px; }
-    .panel { display: none; }
-    .panel.active { display: block; animation: fade .25s ease; }
-    @keyframes fade { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform: translateY(0);} }
-    .home-buttons { display: flex; flex-direction: column; gap: 14px; }
-    button {
-      width: 100%; padding: 14px 16px; border: 0; border-radius: 12px;
-      color: #fff; font-weight: 700; font-size: 16px; cursor: pointer; transition: transform .08s ease, box-shadow .2s ease;
-      box-shadow: 0 6px 16px rgba(0,0,0,.15);
+
+    /* Colors and sizing */
+    :root{
+      --brand1: #667eea; /* primary */
+      --brand2: #764ba2; /* primary grad */
+      --accent1:#11998e; /* secondary */
+      --accent2:#38ef7d;
+      --bg-card:#ffffff;
+      --bg-app:#f5f7fb;
+      --text:#1f2937;
+      --text-muted:#4b5563;
+      --danger1:#ff6b6b;
+      --danger2:#ee5a6f;
+      --ok:#16a34a;
+      --warn:#f59e0b;
+
+      --bar-h: 56px;     /* top app bar (phone-friendly) */
+      --nav-h: 64px;     /* bottom nav (Next) */
     }
-    button:active { transform: scale(.98); }
-    .btn-primary { background: linear-gradient(135deg,#667eea,#764ba2); }
-    .btn-secondary { background: linear-gradient(135deg,#11998e,#38ef7d); }
-    .btn-copy { background: linear-gradient(135deg,#f093fb,#f5576c); }
-    .btn-danger { background: linear-gradient(135deg,#fa709a,#fee140); color: #222; }
-    .status { margin: 12px 0; padding: 12px; border-radius: 10px; text-align: center; font-weight: 700; }
-    .status.success { background: #e8f7ee; color: #146c2e; border: 1px solid #bfe7cb; }
-    .status.error { background: #fde8ea; color: #821d2a; border: 1px solid #f3c2c8; }
+
+    /* App frame uses dynamic viewport height to prevent mobile toolbar overlap */
+    .app {
+      height: 100dvh; /* dynamic viewport to avoid mobile address bar jump */
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
+    }
+
+    /* Top app bar */
+    .appbar {
+      height: var(--bar-h);
+      min-height: var(--bar-h);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      color: #fff;
+      background: transparent;
+    }
+    .appbar .back {
+      width: 40px;
+      height: 40px;
+      border: 0;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-right: 8px;
+      visibility: hidden; /* toggled by JS */
+    }
+    .appbar .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: #fff;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      font-size: 16px;
+    }
+    .appbar .logo svg {
+      width: 22px;
+      height: 22px;
+      display: block;
+    }
+    .appbar .title {
+      margin-left: 12px;
+      color: #e5e7eb;
+      font-weight: 600;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    /* Content card area (no scroll; we size inner elements to fit) */
+    .content-wrap {
+      flex: 1 1 auto;
+      min-height: calc(100dvh - var(--bar-h) - var(--nav-h));
+      max-height: calc(100dvh - var(--bar-h) - var(--nav-h));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 720px;
+      height: 100%;
+      background: var(--bg-card);
+      border-radius: 20px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.25);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .card-inner {
+      flex: 1 1 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 12px;
+      background:
+        radial-gradient(1000px 500px at 100% -10%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 70%),
+        linear-gradient(180deg,#ffffff 0%, #f9fafb 100%);
+    }
+
+    .panel {
+      display: none;
+      height: 100%;
+    }
+    .panel.active { display: block; }
+
+    .section {
+      background: linear-gradient(135deg, #f5f7fa 0%, #eaeffd 100%);
+      border-left: 6px solid var(--brand1);
+      border-radius: 14px;
+      padding: 12px;
+      color: var(--text);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 40px;
+    }
+    .section .num {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, var(--brand1), var(--brand2));
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      font-weight: 900;
+    }
+
+    .stage {
+      height: 100%;
+      display: grid;
+      grid-template-rows: 1fr;
+      gap: 12px;
+    }
+
+    /* Stage layouts (fixed heights to avoid scroll) */
+    .stage-center {
+      display: grid;
+      grid-template-rows: 1fr;
+      align-items: center;
+      justify-items: center;
+      gap: 12px;
+    }
+
+    .stack {
+      width: 100%;
+      display: grid;
+      grid-template-rows: auto auto auto;
+      gap: 10px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .status {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 13px;
+    }
     .status.info { background: #eaf2fd; color: #174aa7; border: 1px solid #c8dbfb; }
+    .status.ok   { background: #e8f7ee; color: #146c2e; border: 1px solid #bfe7cb; }
+    .status.err  { background: #fde8ea; color: #821d2a; border: 1px solid #f3c2c8; }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: 0;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand1), var(--brand2));
+    }
+    .btn.secondary { background: linear-gradient(135deg, var(--accent1), var(--accent2)); }
+    .btn.copy      { background: linear-gradient(135deg, #f093fb, #f5576c); }
+    .btn.danger    { background: linear-gradient(135deg, var(--danger1), var(--danger2)); }
+    .btn:disabled  { opacity: 0.5; cursor: not-allowed; }
+
     textarea {
-      width: 100%; padding: 10px 12px; margin: 10px 0; border: 2px solid #e5e7eb; border-radius: 10px;
-      background: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; resize: vertical;
+      width: 100%;
+      height: 24vh; /* bounded to fit without scroll */
+      min-height: 120px;
+      resize: none;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      background: #f8fafc;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      color: #111827;
     }
-    video { width: 100%; border-radius: 14px; background: #000; margin: 10px 0; min-height: 200px; }
-    .video-wrap { position: relative; }
-    .mic-fab {
-      position: absolute; bottom: 16px; right: 16px; width: 56px; height: 56px; border-radius: 50%;
-      background: linear-gradient(135deg,#ff6b6b,#ee5a6f); color: #fff; font-size: 22px; display: flex; align-items: center; justify-content: center;
-      border: 0; cursor: pointer; box-shadow: 0 10px 24px rgba(0,0,0,.25);
+
+    /* Video wells sized for the viewport */
+    .video-wrap {
+      width: 100%;
+      height: 36vh; /* fits with other controls; no page scroll */
+      min-height: 180px;
+      background: #000;
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.20);
     }
-    .mic-fab.active { background: linear-gradient(135deg,#ee5a6f,#c92a2a); }
-    .sound-card { margin: 14px 0; padding: 14px; border-radius: 14px; background: linear-gradient(135deg,#a8edea,#fed6e3); }
-    .sound-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
-    .sound-btn {
-      padding: 12px; background: #fff; border: 2px solid #e5e7eb; border-radius: 10px; color: #374151; font-weight: 700; cursor: pointer;
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #000;
+      display: block;
     }
-    .sound-btn.active { background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; border-color: transparent; }
-    .sound-btn:disabled { opacity: .5; cursor: not-allowed; }
-    .sound-btn.stop { grid-column: span 2; background: linear-gradient(135deg,#ff6b6b,#ee5a6f); color: #fff; border: 0; }
-    .hint { text-align: center; font-size: 12px; color: #374151; opacity: .8; margin-top: 8px; }
-    @media (max-width: 480px) { .header h1 { font-size: 24px; } }
+
+    /* Mic FAB on final screen */
+    .fab {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 0;
+      color: #fff;
+      background: linear-gradient(135deg, var(--danger1), var(--danger2));
+      display: none; /* shown on final monitor page */
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.25);
+      cursor: pointer;
+    }
+    .fab.active { background: linear-gradient(135deg, #ee5a6f, #c92a2a); }
+
+    /* Lullaby controls on final screen */
+    .controls-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+    select {
+      width: 100%;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      background: #ffffff;
+      padding: 10px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .stop-small {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 0;
+      font-weight: 800;
+      color: #fff;
+      background: linear-gradient(135deg, var(--danger1), var(--danger2));
+      box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+    }
+
+    /* Bottom navigation (Next) */
+    .nav {
+      height: var(--nav-h);
+      min-height: var(--nav-h);
+      background: #ffffff;
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+      box-shadow: 0 -10px 30px rgba(0,0,0,0.12);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr;
+      align-items: center;
+    }
+    .next {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent1), var(--accent2));
+      color: #fff;
+      font-weight: 900;
+      letter-spacing: .3px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .next:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* Hide elements utility */
+    .hidden { display: none !important; }
+
+    /* Small helper text */
+    .hint {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* Role choice grid (home) */
+    .choice-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .role {
+      border: 0;
+      border-radius: 14px;
+      padding: 14px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand1), var(--brand2));
+      box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+      font-weight: 900;
+      font-size: 16px;
+    }
+    .role.secondary {
+      background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>📹 Baby Monitor</h1>
-      <div style="opacity:.9">Secure P2P video with talk-back and soothing sounds</div>
+  <div class="app" id="app">
+    <!-- App bar -->
+    <div class="appbar">
+      <button class="back" id="backBtn" aria-label="Back" title="Back" onclick="goBack()">
+        <!-- back chevron -->
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+      <div class="logo">
+        <!-- Tiny inline logo -->
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#667eea"/>
+              <stop offset="100%" stop-color="#764ba2"/>
+            </linearGradient>
+          </defs>
+          <circle cx="32" cy="32" r="28" fill="url(#g)"/>
+          <rect x="18" y="22" width="28" height="20" rx="6" fill="#fff"/>
+          <circle cx="32" cy="32" r="6" fill="url(#g)"/>
+        </svg>
+        Baby Monitor
+      </div>
+      <div class="title" id="titleBar">Home</div>
     </div>
-    <div class="content">
-      <!-- Home -->
-      <div id="home" class="panel active">
-        <div class="home-buttons">
-          <button class="btn-primary" onclick="initCamera()">📷 Use as Camera</button>
-          <button class="btn-secondary" onclick="showMonitor()">📺 Use as Monitor</button>
-        </div>
-      </div>
 
-      <!-- Camera -->
-      <div id="camera" class="panel">
-        <div id="cameraStatus" class="status info" style="display:none"></div>
-        <div class="status info">Step 1: Copy this and send to Monitor</div>
-        <textarea id="offerText" readonly onclick="this.select()"></textarea>
-        <button class="btn-copy" onclick="copyOffer()">📋 Copy Offer</button>
+    <!-- Content -->
+    <div class="content-wrap">
+      <div class="card">
+        <div class="card-inner">
 
-        <div class="status info" style="margin-top:8px">Step 2: Paste answer from Monitor</div>
-        <textarea id="answerInput" placeholder="Paste answer here..."></textarea>
-        <button class="btn-secondary" onclick="connectCamera()">✓ Connect</button>
-
-        <video id="cameraVideo" autoplay muted playsinline></video>
-        <audio id="remoteAudio" autoplay></audio>
-
-        <button class="btn-danger" onclick="goHome()">← Back</button>
-      </div>
-
-      <!-- Monitor -->
-      <div id="monitor" class="panel">
-        <div id="monitorStatus" class="status info" style="display:none"></div>
-
-        <div class="sound-card">
-          <div style="font-weight:800; margin-bottom:10px; text-align:center">🎵 Soothing Sounds</div>
-          <div class="sound-grid">
-            <button class="sound-btn" onclick="playSound(this,'lullaby1')" disabled>🎼 Twinkle</button>
-            <button class="sound-btn" onclick="playSound(this,'lullaby2')" disabled>🌙 Brahms</button>
-            <button class="sound-btn" onclick="playSound(this,'whitenoise')" disabled>🌊 White Noise</button>
-            <button class="sound-btn" onclick="playSound(this,'rain')" disabled>🌧️ Rain</button>
-            <button class="sound-btn stop" onclick="stopSound()" disabled>⏹️ Stop</button>
+          <!-- Panels -->
+          <div id="panelHome" class="panel active">
+            <div class="stage-center">
+              <div class="section"><span class="num">•</span>Choose what this device will do</div>
+              <div class="stack">
+                <div class="choice-grid">
+                  <button class="role" onclick="chooseRole('camera')">📷 Use as Camera</button>
+                  <button class="role secondary" onclick="chooseRole('monitor')">📺 Use as Monitor</button>
+                </div>
+                <div class="status info">Both devices must be on the same network for fastest pairing.</div>
+              </div>
+            </div>
           </div>
-          <div id="soundHint" class="hint">Waiting for Camera handshake…</div>
+
+          <!-- Camera Step 1: Start & Offer (auto generates) -->
+          <div id="panelCamStart" class="panel">
+            <div class="section"><span class="num">1</span>Start camera & generate offer</div>
+            <div class="stage">
+              <div class="stack">
+                <div class="row">
+                  <div id="cameraStatus" class="status info">Press Start to allow camera & mic.</div>
+                  <button class="btn" onclick="startCamera()">▶ Start Camera</button>
+                </div>
+                <div class="row">
+                  <textarea id="offerText" readonly placeholder="Offer will appear here after gathering ICE…"></textarea>
+                  <button class="btn copy" onclick="copyOffer()">📋 Copy Offer</button>
+                </div>
+                <div class="hint">Next will enable when the offer is ready.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Camera Step 2: Paste Answer & Connect -->
+          <div id="panelCamConnect" class="panel">
+            <div class="section"><span class="num">2</span>Paste answer from Monitor & connect</div>
+            <div class="stage">
+              <div class="stack">
+                <textarea id="answerInput" placeholder="Paste answer JSON here…"></textarea>
+                <button class="btn secondary" onclick="connectCamera()">✓ Connect</button>
+                <div class="status info" id="cameraStatus2" style="display:none"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Monitor Step 1: Paste Offer & Create Answer -->
+          <div id="panelMonOffer" class="panel">
+            <div class="section"><span class="num">1</span>Paste offer from Camera</div>
+            <div class="stage">
+              <div class="stack">
+                <textarea id="offerInput" placeholder="Paste offer JSON here…"></textarea>
+                <button class="btn" onclick="createAnswer()">🔗 Create Answer</button>
+                <div class="status info" id="monitorStatus" style="display:none"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Monitor Step 2: Copy Answer -->
+          <div id="panelMonAnswer" class="panel">
+            <div class="section"><span class="num">2</span>Copy answer & send back to Camera</div>
+            <div class="stage">
+              <div class="stack">
+                <textarea id="answerText" readonly onclick="this.select()" placeholder="Answer will appear here…"></textarea>
+                <button class="btn copy" onclick="copyAnswer()">📋 Copy Answer</button>
+                <div class="hint">Next will open live view once connected.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Monitor Final: Live view + controls -->
+          <div id="panelMonFinal" class="panel">
+            <div class="section"><span class="num">✓</span>Monitor live</div>
+            <div class="stage">
+              <div class="stack">
+                <div class="video-wrap">
+                  <video id="monitorVideo" autoplay playsinline muted></video>
+                  <button id="micBtn" class="fab" title="Hold to Talk"
+                          onpointerdown="startTalking()" onpointerup="stopTalking()"
+                          ontouchstart="startTalking()" ontouchend="stopTalking()">🎤</button>
+                </div>
+                <div class="controls-row">
+                  <select id="soundSelect" onchange="onSoundChange()" disabled>
+                    <option value="">Select lullaby or sound…</option>
+                    <option value="lullaby1">🎼 Twinkle Twinkle</option>
+                    <option value="lullaby2">🌙 Brahms Lullaby</option>
+                    <option value="whitenoise">🌊 White Noise</option>
+                    <option value="rain">🌧️ Rain</option>
+                  </select>
+                  <button class="stop-small" onclick="sendStop()" id="stopBtn" disabled>⏹ Stop</button>
+                </div>
+                <div class="hint" id="soundHint">Waiting for Camera handshake…</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Shared local preview well (camera page only) -->
+          <div id="localPreview" class="panel">
+            <div class="section"><span class="num">•</span>Local preview</div>
+            <div class="stage">
+              <div class="video-wrap">
+                <video id="cameraVideo" autoplay muted playsinline></video>
+              </div>
+            </div>
+          </div>
+
         </div>
-
-        <div class="status info">Step 1: Paste offer from Camera</div>
-        <textarea id="offerInput" placeholder="Paste offer here..."></textarea>
-        <button class="btn-primary" onclick="createAnswer()">🔗 Create Answer</button>
-
-        <div id="monitorStep2" style="display:none">
-          <div class="status info" style="margin-top:8px">Step 2: Copy and send back to Camera</div>
-          <textarea id="answerText" readonly onclick="this.select()"></textarea>
-          <button class="btn-copy" onclick="copyAnswer()">📋 Copy Answer</button>
-        </div>
-
-        <div class="video-wrap">
-          <video id="monitorVideo" autoplay playsinline></video>
-          <button id="micBtn" class="mic-fab" style="display:none" onpointerdown="startTalking()" onpointerup="stopTalking()" ontouchstart="startTalking()" ontouchend="stopTalking()">🎤</button>
-        </div>
-
-        <button class="btn-danger" onclick="goHome()">← Back</button>
       </div>
+    </div>
+
+    <!-- Bottom Next bar -->
+    <div class="nav">
+      <button id="nextBtn" class="next" onclick="goNext()" disabled>Next</button>
     </div>
   </div>
 
   <script>
-    // STUN only; add TURN for internet NAT traversal if needed
-    const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+    // Wizard state
+    const PAGES = {
+      home: 'panelHome',
+      camStart: 'panelCamStart',
+      camConnect: 'panelCamConnect',
+      monOffer: 'panelMonOffer',
+      monAnswer: 'panelMonAnswer',
+      monFinal: 'panelMonFinal',
+      localPreview: 'localPreview',
+    };
+    let role = null;
+    let current = PAGES.home;
 
-    // State
+    // WebRTC state
+    const rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
     let pc = null;
-    let localStream = null;            // camera device
-    let cameraAudioTrack = null;       // camera mic (optional use)
-    let monitorMicStream = null;       // monitor talk-back
-    let monitorMicTrack = null;        // monitor talk-back track
-    let dataChannel = null;            // ctrl channel
-    let pingTimer = null;              // monitor handshake pinger
+    let localStream = null;
+    let cameraAudioTrack = null;
+    let monitorMicStream = null;
+    let monitorMicTrack = null;
+    let dataChannel = null;
 
-    // Web Audio state (camera phone)
+    // Handshake pinger
+    let pingTimer = null;
+
+    // Audio engine state (camera phone)
     let audioCtx = null;
     let gain = null;
-    let currentOsc = null;   // active OscillatorNode (melody note)
-    let currentSrc = null;   // active AudioBufferSourceNode (noise/rain)
-    let melodyTimer = null;  // timeout id for next note
+    let currentOsc = null;   // OscillatorNode (melody)
+    let currentSrc = null;   // AudioBufferSourceNode (noise)
+    let melodyTimer = null;
     let melodyActive = false;
 
-    const log = (...a) => console.log('[BM]', ...a);
+    // UI shortcuts
+    const $ = sel => document.querySelector(sel);
+    const show = id => document.getElementById(id).classList.add('active');
+    const hide = id => document.getElementById(id).classList.remove('active');
 
-    // UI helpers
-    const showPanel = id => {
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-    };
-    const showInfo = (id,msg) => { const el = document.getElementById(id); el.className='status info'; el.style.display='block'; el.textContent = msg; };
-    const showOk   = (id,msg) => { const el = document.getElementById(id); el.className='status success'; el.style.display='block'; el.textContent = msg; };
-    const showErr  = (id,msg) => { const el = document.getElementById(id); el.className='status error'; el.style.display='block'; el.textContent = msg; };
+    function setTitle(txt){ document.getElementById('titleBar').textContent = txt; }
+    function setBackVisible(v){ document.getElementById('backBtn').style.visibility = v ? 'visible':'hidden'; }
+    function setNextEnabled(v){ document.getElementById('nextBtn').disabled = !v; }
+    function setNextVisible(v){ document.getElementById('nextBtn').classList.toggle('hidden', !v); }
 
-    function showMonitor(){ showPanel('monitor'); }
-
-    function goHome(){
-      try { if (pingTimer) clearInterval(pingTimer); } catch{}
-      try { if (pc) pc.close(); } catch{}
-      try { if (localStream) localStream.getTracks().forEach(t=>t.stop()); } catch{}
-      try { if (monitorMicStream) monitorMicStream.getTracks().forEach(t=>t.stop()); } catch{}
-      try { stopSoundOnCamera(); } catch{}
-      location.reload();
+    function goto(page){
+      // hide all panels
+      Object.values(PAGES).forEach(id => hide(id));
+      // show selected
+      show(page);
+      current = page;
+      // title and next/back setup per page
+      if (page === PAGES.home){
+        setTitle('Home');
+        setBackVisible(false);
+        setNextVisible(true);
+        setNextEnabled(false);
+      } else {
+        setBackVisible(true);
+        setNextVisible(true);
+        // default disabled; pages enable as needed
+        setNextEnabled(false);
+      }
+      // page-specific UI
+      if (page === PAGES.camStart){
+        setTitle('Camera • Generate Offer');
+      }
+      if (page === PAGES.camConnect){
+        setTitle('Camera • Connect');
+      }
+      if (page === PAGES.monOffer){
+        setTitle('Monitor • Paste Offer');
+      }
+      if (page === PAGES.monAnswer){
+        setTitle('Monitor • Copy Answer');
+      }
+      if (page === PAGES.monFinal){
+        setTitle('Monitor • Live');
+        // Next hidden on final
+        setNextVisible(false);
+      }
     }
 
-    // Clipboard
-    function copyOffer(){ const t=document.getElementById('offerText'); t.select(); document.execCommand('copy'); showOk('cameraStatus','Copied offer. Send to Monitor.'); }
-    function copyAnswer(){ const t=document.getElementById('answerText'); t.select(); document.execCommand('copy'); showOk('monitorStatus','Copied answer. Send back to Camera.'); }
-
-    // CAMERA side
-    async function initCamera(){
-      showPanel('camera');
-      showInfo('cameraStatus','Starting camera…');
-      await startCamera();
+    function chooseRole(r){
+      role = r;
+      if (role === 'camera'){
+        goto(PAGES.camStart);
+        // local preview panel shows on camera steps below the card title zone
+        show(PAGES.localPreview);
+      } else {
+        goto(PAGES.monOffer);
+        hide(PAGES.localPreview);
+      }
     }
 
+    function goBack(){
+      if (current === PAGES.home) return;
+      if (role === 'camera'){
+        if (current === PAGES.camConnect){ goto(PAGES.camStart); return; }
+        if (current === PAGES.camStart){ goto(PAGES.home); return; }
+      } else {
+        if (current === PAGES.monAnswer){ goto(PAGES.monOffer); return; }
+        if (current === PAGES.monFinal){ goto(PAGES.monAnswer); return; }
+        if (current === PAGES.monOffer){ goto(PAGES.home); return; }
+      }
+    }
+
+    function goNext(){
+      if (role === 'camera'){
+        if (current === PAGES.camStart) { goto(PAGES.camConnect); return; }
+        if (current === PAGES.camConnect) { /* no next */ return; }
+      } else {
+        if (current === PAGES.monOffer) { goto(PAGES.monAnswer); return; }
+        if (current === PAGES.monAnswer) { goto(PAGES.monFinal); return; }
+      }
+    }
+
+    /* Clipboard helpers */
+    function copyOffer(){
+      const t = document.getElementById('offerText');
+      t.select(); document.execCommand('copy');
+      ok('cameraStatus','Copied offer. Send to Monitor.');
+    }
+    function copyAnswer(){
+      const t = document.getElementById('answerText');
+      t.select(); document.execCommand('copy');
+      ok('monitorStatus','Copied answer. Send to Camera.');
+    }
+
+    /* Status helpers */
+    function info(id, m){ const el=document.getElementById(id); el.className='status info'; el.style.display='block'; el.textContent=m; }
+    function ok(id, m){ const el=document.getElementById(id); el.className='status ok'; el.style.display='block'; el.textContent=m; }
+    function err(id, m){ const el=document.getElementById(id); el.className='status err'; el.style.display='block'; el.textContent=m; }
+
+    /* CAMERA FLOW */
     async function startCamera(){
-      try {
-        // Get camera with audio; user gesture here helps unlock audio later
+      try{
+        info('cameraStatus','Requesting camera & mic…');
         localStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: {ideal:1920}, height: {ideal:1080} },
+          video: { facingMode: 'environment', width: {ideal:1920}, height:{ideal:1080} },
           audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }
         });
-
-        const camVideo = document.getElementById('cameraVideo');
-        camVideo.srcObject = localStream;
-
-        cameraAudioTrack = localStream.getAudioTracks()[0] || null;
+        const camV = document.getElementById('cameraVideo');
+        camV.srcObject = localStream;
 
         pc = new RTCPeerConnection(rtcConfig);
 
-        // Create DataChannel on OFFERER before createOffer
+        // DataChannel on offerer (camera) BEFORE offer
         dataChannel = pc.createDataChannel('ctrl');
-        dataChannel.onopen = () => log('Camera DC open');
-        dataChannel.onclose = () => log('Camera DC close');
-        dataChannel.onerror = (e) => log('Camera DC error', e);
+        dataChannel.onopen = () => console.log('[Camera] DC open');
         dataChannel.onmessage = (ev) => {
           try {
             const msg = JSON.parse(ev.data);
-            log('Camera got', msg);
             if (msg.action === 'play') playSoundOnCamera(msg.sound);
             if (msg.action === 'stop') stopSoundOnCamera();
             if (msg.action === 'ping') dataChannel.send(JSON.stringify({action:'ready'}));
-          } catch(e){ log('Camera msg parse error', e); }
+          } catch(e){}
         };
 
         // Add camera tracks
         localStream.getTracks().forEach(tr => pc.addTrack(tr, localStream));
 
-        // Remote audio from monitor (talk-back)
+        // Monitor talk-back audio plays here
         pc.ontrack = (e) => {
           if (e.track.kind === 'audio' && e.streams[0]) {
-            const ra = document.getElementById('remoteAudio');
+            const ra = new Audio();
             ra.srcObject = e.streams[0];
             ra.play().catch(()=>{});
           }
         };
 
-        // ICE gather → export offer pkg
+        // ICE gather → Offer
         const gathered = [];
         pc.onicecandidate = (ev)=>{ if (ev.candidate) gathered.push(ev.candidate); };
         pc.onicegatheringstatechange = ()=>{
           if (pc.iceGatheringState === 'complete') {
             const offerPkg = { sdp: pc.localDescription, candidates: gathered };
             document.getElementById('offerText').value = JSON.stringify(offerPkg);
-            showOk('cameraStatus','Camera ready. Copy offer and send to Monitor.');
+            ok('cameraStatus','Offer ready. Copy and send to Monitor.');
+            // Enable Next (go to paste-answer screen)
+            setNextEnabled(true);
           }
         };
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
-      } catch(err){
-        showErr('cameraStatus','Error: '+ err.message);
+      } catch(e){
+        err('cameraStatus','Error: ' + e.message);
       }
     }
 
     async function connectCamera(){
-      try {
-        const val = document.getElementById('answerInput').value.trim();
-        if (!val) return showErr('cameraStatus','Paste the answer first.');
-        const answer = JSON.parse(val);
+      try{
+        const raw = document.getElementById('answerInput').value.trim();
+        if (!raw) { err('cameraStatus2','Paste the answer first.'); return; }
+        const answer = JSON.parse(raw);
         await pc.setRemoteDescription(answer.sdp);
-        if (answer.candidates) for (const c of answer.candidates){ await pc.addIceCandidate(c); }
-        showOk('cameraStatus','Connected. Monitor can now control sounds.');
-      } catch(err){
-        showErr('cameraStatus','Error: '+ err.message);
+        if (answer.candidates) for (const c of answer.candidates) await pc.addIceCandidate(c);
+        ok('cameraStatus2','Connected. Monitor can control sounds.');
+        // No further Next for camera
+        setNextEnabled(false);
+      } catch(e){
+        err('cameraStatus2','Error: ' + e.message);
       }
     }
 
-    // MONITOR side
+    /* MONITOR FLOW */
     async function createAnswer(){
-      try {
-        const val = document.getElementById('offerInput').value.trim();
-        if (!val) return showErr('monitorStatus','Paste the camera offer first.');
-        showInfo('monitorStatus','Creating connection…');
+      try{
+        const raw = document.getElementById('offerInput').value.trim();
+        if (!raw) { err('monitorStatus','Paste the offer first.'); return; }
+        info('monitorStatus','Creating connection…');
 
-        const offer = JSON.parse(val);
+        const offer = JSON.parse(raw);
         pc = new RTCPeerConnection(rtcConfig);
 
-        // Receive camera-created DC
+        // Receive DC from camera
         pc.ondatachannel = (ev)=>{
           dataChannel = ev.channel;
-          log('Monitor received DC', dataChannel.label);
-          dataChannel.onopen = ()=> {
-            log('Monitor DC open');
+          dataChannel.onopen = ()=>{
+            // start pings until "ready"
             startPinging();
           };
           dataChannel.onmessage = (e)=>{
             try {
               const msg = JSON.parse(e.data);
-              log('Monitor got', msg);
               if (msg.action === 'ready') {
-                enableSoundButtons();
-                showOk('monitorStatus','Handshake complete. Sounds ready.');
+                enableSoundControls();
+                ok('monitorStatus','Handshake complete. Sounds ready.');
               }
-            } catch(err){ log('Monitor msg parse err', err); }
+            } catch(err){}
           };
-          dataChannel.onclose = ()=> log('Monitor DC close');
-          dataChannel.onerror = (e)=> log('Monitor DC error', e);
         };
 
-        // Fallback: enable if connected and DC open
+        // Fallback: when fully connected & DC open, enable controls
         pc.onconnectionstatechange = ()=>{
-          log('PC state', pc.connectionState);
           if ((pc.connectionState === 'connected' || pc.connectionState === 'completed') && dataChannel && dataChannel.readyState === 'open'){
-            enableSoundButtons();
-            showOk('monitorStatus','Connected. Sounds enabled.');
+            enableSoundControls();
+            ok('monitorStatus','Connected. Sounds enabled.');
             stopPinging();
           }
         };
 
-        // Show camera media on monitor
+        // Show camera stream
         pc.ontrack = (e)=>{
           if (e.track.kind === 'video') {
             document.getElementById('monitorVideo').srcObject = e.streams[0];
@@ -304,39 +762,38 @@
         };
 
         // Add monitor mic (muted by default)
-        try {
-          monitorMicStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+        try{
+          monitorMicStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }});
           monitorMicTrack = monitorMicStream.getAudioTracks()[0];
           monitorMicTrack.enabled = false;
           pc.addTrack(monitorMicTrack, monitorMicStream);
-        } catch(e){
-          log('Monitor mic denied', e);
-        }
+        } catch(e){ /* mic denied is OK; talk-back just won't work */ }
 
-        // ICE gather → export answer pkg
+        // ICE → answer
         const gathered = [];
         pc.onicecandidate = (ev)=>{ if (ev.candidate) gathered.push(ev.candidate); };
         pc.onicegatheringstatechange = ()=>{
           if (pc.iceGatheringState === 'complete') {
             const answerPkg = { sdp: pc.localDescription, candidates: gathered };
             document.getElementById('answerText').value = JSON.stringify(answerPkg);
-            document.getElementById('monitorStep2').style.display = 'block';
-            showOk('monitorStatus','Answer ready. Copy and send to Camera.');
+            document.getElementById('monitorStatus').style.display = 'block';
+            ok('monitorStatus','Answer ready. Copy and send to Camera.');
+            // Enable Next to go to Copy Answer step
+            setNextEnabled(true);
           }
         };
 
         await pc.setRemoteDescription(offer.sdp);
-        if (offer.candidates) for (const c of offer.candidates){ await pc.addIceCandidate(c); }
+        if (offer.candidates) for (const c of offer.candidates) await pc.addIceCandidate(c);
 
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
 
-      } catch(err){
-        showErr('monitorStatus','Error: '+ err.message);
+      } catch(e){
+        err('monitorStatus','Error: ' + e.message);
       }
     }
 
-    // Persistent ping loop from monitor to camera until we get "ready"
     function startPinging(){
       stopPinging();
       const hint = document.getElementById('soundHint');
@@ -350,13 +807,28 @@
     }
     function stopPinging(){ if (pingTimer){ clearInterval(pingTimer); pingTimer = null; } }
 
-    // Enable sound buttons (monitor UI)
-    function enableSoundButtons(){
-      document.querySelectorAll('.sound-btn').forEach(b=> b.disabled = false);
-      const hint = document.getElementById('soundHint');
-      hint.textContent = '🎵 Sounds ready';
-      hint.style.opacity = '1';
+    function enableSoundControls(){
+      const sel = document.getElementById('soundSelect');
+      const stopBtn = document.getElementById('stopBtn');
+      sel.disabled = false; stopBtn.disabled = false;
+      document.getElementById('soundHint').textContent = '🎵 Sounds ready';
       stopPinging();
+    }
+
+    // Monitor final controls
+    function onSoundChange(){
+      const sel = document.getElementById('soundSelect');
+      const val = sel.value;
+      if (!val) return;
+      if (!dataChannel || dataChannel.readyState !== 'open') return;
+      try { dataChannel.send(JSON.stringify({ action:'play', sound: val })); } catch {}
+    }
+    function sendStop(){
+      if (dataChannel && dataChannel.readyState === 'open') {
+        try { dataChannel.send(JSON.stringify({ action:'stop' })); } catch {}
+      }
+      const sel = document.getElementById('soundSelect');
+      sel.value = '';
     }
 
     // Push-to-talk (monitor → camera)
@@ -371,26 +843,7 @@
       if (monitorMicTrack) monitorMicTrack.enabled = false;
     }
 
-    // Monitor commands → Camera sound engine
-    function playSound(el, kind){
-      if (!dataChannel || dataChannel.readyState !== 'open') {
-        showErr('monitorStatus','Connection not ready yet.');
-        return;
-      }
-      document.querySelectorAll('.sound-btn:not(.stop)').forEach(b=> b.classList.remove('active'));
-      el.classList.add('active');
-      try { dataChannel.send(JSON.stringify({ action:'play', sound: kind })); } catch {}
-      showOk('monitorStatus','Playing '+ el.textContent.replaceAll('\n',' ').trim());
-    }
-    function stopSound(){
-      if (dataChannel && dataChannel.readyState === 'open') {
-        try { dataChannel.send(JSON.stringify({ action:'stop' })); } catch {}
-      }
-      document.querySelectorAll('.sound-btn').forEach(b=> b.classList.remove('active'));
-      showInfo('monitorStatus','Sound stopped.');
-    }
-
-    // CAMERA: Web Audio helpers (exclusive playback + reliable stop)
+    /* CAMERA AUDIO ENGINE (exclusive playback + reliable stop) */
     async function ensureAudioRunning() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -418,8 +871,7 @@
 
     async function playSoundOnCamera(kind) {
       await ensureAudioRunning();
-      stopSoundOnCamera(); // guarantee exclusivity
-
+      stopSoundOnCamera(); // exclusive
       if (kind === 'whitenoise') return playWhiteNoise();
       if (kind === 'rain') return playRain();
       if (kind === 'lullaby1') return playMelody([261.63,261.63,392.00,392.00,440.00,440.00,392.00,349.23,349.23,329.63,329.63,293.66,293.66,261.63], 0.52, 620);
@@ -441,8 +893,7 @@
 
         const stopAt = audioCtx.currentTime + noteDur;
         osc.start();
-        // stop() immediately or at stopAt; here we schedule the exact stop time for smoother envelope
-        osc.stop(stopAt); // per API, stop schedules immediate or future stop reliably [web:204]
+        osc.stop(stopAt); /* schedule the stop for smoother cadence */
 
         osc.onended = () => {
           if (!melodyActive) return;
@@ -450,7 +901,6 @@
           melodyTimer = setTimeout(step, gapMs);
         };
       };
-
       step();
     }
 
@@ -462,10 +912,10 @@
 
       const src = audioCtx.createBufferSource();
       src.buffer = buf;
-      src.loop = true; // loop until stopped
+      src.loop = true;
       src.connect(gain);
       src.start(0);
-      currentSrc = src; // AudioBufferSourceNode is a one-shot; keep handle to stop() it [web:223]
+      currentSrc = src;
     }
 
     function playRain() {
@@ -484,8 +934,11 @@
       src.connect(lp);
       lp.connect(gain);
       src.start(0);
-      currentSrc = src; // one-shot node; keep handle to stop() [web:223]
+      currentSrc = src;
     }
+
+    // Init
+    goto(PAGES.home);
   </script>
 </body>
 </html>
