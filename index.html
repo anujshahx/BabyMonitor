@@ -21,7 +21,6 @@
       color: #0f172a;
       font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-
     :root{
       --brand1:#5b7bff; --brand2:#7a47e8;
       --accent1:#00b894; --accent2:#2ecc71;
@@ -33,9 +32,7 @@
       --radius:18px;
       --shadow: 0 18px 50px rgba(0,0,0,.22);
       --shadow-soft: 0 10px 28px rgba(0,0,0,.12);
-      --glass: rgba(255,255,255,.16);
     }
-
     .app {
       height: 100dvh;
       width: 100%;
@@ -44,7 +41,6 @@
       background: radial-gradient(1200px 600px at 100% -10%, rgba(255,255,255,.25) 0%, rgba(255,255,255,0) 60%),
                   linear-gradient(135deg, var(--brand1), var(--brand2));
     }
-
     .appbar {
       height: var(--bar-h);
       display: grid;
@@ -56,19 +52,17 @@
     }
     .back {
       width: 40px; height: 40px; border: 0; border-radius: 10px;
-      background: var(--glass);
+      background: rgba(255,255,255,.16);
       color: #fff; display: inline-flex; align-items: center; justify-content: center;
       cursor: pointer; visibility: hidden; transition: transform .08s ease;
     }
     .back:active { transform: scale(.96); }
-
     .brand {
       display: inline-flex; align-items: center; gap: 10px;
       color: #fff; font-weight: 800; letter-spacing: .2px; font-size: 16px;
     }
     .brand svg { width: 22px; height: 22px; display: block; }
     .title { color: #e5e7eb; font-weight: 600; font-size: 13px; opacity: .9; margin-left: 12px; }
-
     .content {
       position: relative;
       height: 100%;
@@ -77,7 +71,6 @@
       padding-bottom: calc(var(--nav-h) + var(--pad));
       display: grid; place-items: center;
     }
-
     .card {
       width: min(720px, 100%);
       height: 100%;
@@ -89,7 +82,6 @@
       grid-template-rows: 1fr;
       position: relative;
     }
-
     .panel {
       position: absolute; inset: 0;
       padding: var(--pad);
@@ -99,17 +91,10 @@
         linear-gradient(180deg,#ffffff 0%, #f7f9fb 70%);
     }
     .panel.active { display: block; }
-
-    .enter-right { animation: enter-right .28s ease both; }
-    .leave-left  { animation: leave-left  .28s ease both; }
-    .enter-left  { animation: enter-left  .28s ease both; }
-    .leave-right { animation: leave-right .28s ease both; }
-
     @keyframes enter-right { from { opacity:0; transform: translateX(30px); } to { opacity:1; transform: translateX(0); } }
     @keyframes leave-left  { from { opacity:1; transform: translateX(0); } to { opacity:0; transform: translateX(-30px);} }
     @keyframes enter-left  { from { opacity:0; transform: translateX(-30px);} to { opacity:1; transform: translateX(0);} }
     @keyframes leave-right { from { opacity:1; transform: translateX(0);} to { opacity:0; transform: translateX(30px);} }
-
     .section {
       background: linear-gradient(135deg, #f5f7fa 0%, #eaeffd 100%);
       border-left: 6px solid var(--brand1);
@@ -127,7 +112,6 @@
       color: #fff; font-size: 12px; font-weight: 900; display: grid; place-items: center;
       box-shadow: 0 4px 10px rgba(0,0,0,.14);
     }
-
     .stack { height: calc(100% - 58px); display: grid; grid-template-rows: auto 1fr auto; gap: 12px; }
     .status {
       width: 100%; padding: 10px 12px; border-radius: 12px; text-align: center; font-weight: 700; font-size: 13px;
@@ -136,7 +120,6 @@
     .info { background: #eaf2fd; color: #174aa7; border: 1px solid #c8dbfb; }
     .ok   { background: #e8f7ee; color: #146c2e; border: 1px solid #bfe7cb; }
     .err  { background: #fde8ea; color: #821d2a; border: 1px solid #f3c2c8; }
-
     .row { display: grid; grid-template-columns: 1fr; gap: 10px; }
     .btn {
       width: 100%; padding: 14px; border: 0; border-radius: 14px;
@@ -150,7 +133,6 @@
     .btn.danger { background: linear-gradient(135deg, var(--danger1), var(--danger2)); }
     .btn:active { transform: scale(.98); }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
-
     textarea {
       width: 100%; height: 28vh; min-height: 120px; border: 2px solid #e5e7eb; border-radius: 14px;
       background: #f8fafc; padding: 10px; resize: none; overflow: auto;
@@ -158,13 +140,11 @@
       font-size: 12px; color: #0f172a;
       box-shadow: var(--shadow-soft);
     }
-
     .video {
       width: 100%; height: 34vh; min-height: 170px; background:#000; border-radius: 14px; overflow: hidden; position: relative;
       box-shadow: var(--shadow);
     }
     video { width: 100%; height: 100%; object-fit: cover; display: block; background:#000; }
-
     .fab {
       position: absolute; right: 12px; bottom: 12px; width: 56px; height: 56px; border-radius: 50%; border: 0;
       color: #fff; font-size: 22px; display: none; align-items: center; justify-content: center; cursor: pointer;
@@ -173,7 +153,6 @@
     }
     .fab:active { transform: scale(.96); }
     .fab.active { background: linear-gradient(135deg, #ee5a6f, #c92a2a); }
-
     .controls {
       display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
     }
@@ -183,8 +162,7 @@
       font-weight: 700; color: var(--text); box-shadow: var(--shadow-soft);
     }
     .select select {
-      appearance: none; -webkit-appearance: none; -moz-appearance: none;
-      border: 0; outline: 0; background: transparent; width: 100%; height: 100%; font-weight: 700; color: var(--text);
+      appearance: none; border: 0; outline: 0; background: transparent; width: 100%; height: 100%; font-weight: 700; color: var(--text);
       font-family: inherit; cursor: pointer;
     }
     .select:after {
@@ -198,7 +176,6 @@
     }
     .pill:active { transform: scale(.98); }
     .pill.stop { background: linear-gradient(135deg, var(--danger1), var(--danger2)); }
-
     .footer {
       position: fixed; left: 0; right: 0; bottom: 0; height: var(--nav-h);
       background:#fff; border-top-left-radius: 16px; border-top-right-radius: 16px; box-shadow: 0 -10px 30px rgba(0,0,0,.12);
@@ -212,7 +189,6 @@
     }
     .next:active { transform: scale(.98); }
     .next:disabled { opacity:.45; cursor: not-allowed; }
-
     .hidden { display: none !important; }
   </style>
 </head>
@@ -358,11 +334,10 @@
   </div>
 
   <script>
-    /* Wizard State */
+    // Wizard State
     const P = { home:'home', cam1:'cam1', cam2:'cam2', cam3:'cam3', mon1:'mon1', mon2:'mon2', mon3:'mon3' };
     let role = null;
     let current = P.home;
-    let animLock = false;
 
     const titleEl = document.getElementById('title');
     const backBtn = document.getElementById('backBtn');
@@ -371,109 +346,79 @@
     function setTitle(t){ titleEl.textContent = t; }
     function setBack(v){ backBtn.style.visibility = v ? 'visible' : 'hidden'; }
     function setNext(v){ nextBtn.disabled = !v; }
-    function showCopied(msgId){
-      const el = document.getElementById(msgId);
-      el.style.display = 'block';
-      setTimeout(()=> el.style.display='none', 1400);
-    }
 
-    function switchPanel(nextId, dir='forward'){
-      if (animLock) return;
-      animLock = true;
+    function switchPanel(nextId){
       const card = document.getElementById('card');
-      const panels = card.querySelectorAll('.panel');
-      const from = document.getElementById(current);
+      card.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       const to = document.getElementById(nextId);
-      panels.forEach(p => p.classList.remove('active','enter-right','leave-left','enter-left','leave-right'));
-      from.classList.add(dir==='forward' ? 'leave-left' : 'leave-right');
-      to.classList.add('active', dir==='forward' ? 'enter-right' : 'enter-left');
-      setTimeout(()=> { current = nextId; animLock=false; }, 280);
+      if (to) to.classList.add('active');
+      current = nextId;
     }
-
-    function goto(id, dir='forward'){ switchPanel(id, dir); configureTop(); }
+    function goto(id){
+      switchPanel(id);
+      configureTop();
+    }
     function configureTop(){
       if (current===P.home){ setTitle('Home'); setBack(false); setNext(false); return; }
       setBack(true); setNext(false);
       if (role==='camera'){
         if (current===P.cam1) setTitle('Camera • Generate Offer');
         if (current===P.cam2) setTitle('Camera • Connect');
-        if (current===P.cam3) { setTitle('Camera • Live'); nextBtn.classList.add('hidden'); }
-        else nextBtn.classList.remove('hidden');
+        if (current===P.cam3){ setTitle('Camera • Live'); nextBtn.classList.add('hidden'); } else { nextBtn.classList.remove('hidden'); }
       } else {
         if (current===P.mon1) setTitle('Monitor • Paste Offer');
-        if (current===P.mon2) { setTitle('Monitor • Copy Answer'); setNext(true); }
-        if (current===P.mon3) { setTitle('Monitor • Live'); nextBtn.classList.add('hidden'); }
-        else nextBtn.classList.remove('hidden');
+        if (current===P.mon2){ setTitle('Monitor • Copy Answer'); setNext(true); }
+        if (current===P.mon3){ setTitle('Monitor • Live'); nextBtn.classList.add('hidden'); } else { nextBtn.classList.remove('hidden'); }
       }
     }
-
     function chooseRole(r){
       role = r;
       if (role==='camera'){ goto(P.cam1); }
       else { goto(P.mon1); }
     }
-
     function goBack(){
       if (current===P.home) return;
       if (role==='camera'){
-        if (current===P.cam3) { goto(P.cam2,'back'); return; }
-        if (current===P.cam2) { goto(P.cam1,'back'); return; }
-        if (current===P.cam1) { goto(P.home,'back'); return; }
+        if (current===P.cam3) return goto(P.cam2);
+        if (current===P.cam2) return goto(P.cam1);
+        if (current===P.cam1) return goto(P.home);
       } else {
-        if (current===P.mon3) { goto(P.mon2,'back'); return; }
-        if (current===P.mon2) { goto(P.mon1,'back'); return; }
-        if (current===P.mon1) { goto(P.home,'back'); return; }
+        if (current===P.mon3) return goto(P.mon2);
+        if (current===P.mon2) return goto(P.mon1);
+        if (current===P.mon1) return goto(P.home);
       }
     }
-
     function goNext(){
       if (role==='camera'){
-        if (current===P.cam1) { goto(P.cam2); return; }
-        if (current===P.cam2) { goto(P.cam3); return; }
+        if (current===P.cam1) return goto(P.cam2);
+        if (current===P.cam2) return goto(P.cam3);
       } else {
-        if (current===P.mon1) { goto(P.mon2); return; }
-        if (current===P.mon2) { goto(P.mon3); return; }
+        if (current===P.mon1) return goto(P.mon2);
+        if (current===P.mon2) return goto(P.mon3);
       }
     }
 
-    /* Clipboard (modern API with fallback) */
+    // Clipboard (modern + fallback)
     async function copyText(textareaId){
       const el = document.getElementById(textareaId);
       const txt = el.value || '';
       try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(txt);
-        } else {
-          el.select();
-          document.execCommand('copy');
-        }
-        if (textareaId==='offerText') showCopied('copyOfferMsg');
-        if (textareaId==='answerText') showCopied('copyAnswerMsg');
-      } catch(e) {
-        alert('Copy failed: ' + e.message);
-      }
+        if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(txt); }
+        else { el.select(); document.execCommand('copy'); }
+        if (textareaId==='offerText'){ const m=document.getElementById('copyOfferMsg'); m.style.display='block'; setTimeout(()=>m.style.display='none', 1400); }
+        if (textareaId==='answerText'){ const m=document.getElementById('copyAnswerMsg'); m.style.display='block'; setTimeout(()=>m.style.display='none', 1400); }
+      } catch(e) { alert('Copy failed: ' + e.message); }
     }
 
-    /* WebRTC Core */
-    const rtcConfig = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
-    };
-
-    let pc=null, localStream=null, monitorMicStream=null, monitorMicTrack=null, dataChannel=null;
-    let pingTimer=null;
-
-    // Save & restore helpers
-    function saveLocal(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch{} }
-    function loadLocal(key){ try{ return JSON.parse(localStorage.getItem(key)||'null'); }catch{ return null; } }
+    // WebRTC core
+    const rtcConfig = { iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}] };
+    let pc=null, localStream=null, monitorMicStream=null, monitorMicTrack=null, dataChannel=null, pingTimer=null;
 
     function info(id,m){ const el=document.getElementById(id); el.className='status info'; el.style.display='block'; el.textContent=m; }
     function okmsg(id,m){ const el=document.getElementById(id); el.className='status ok'; el.style.display='block'; el.textContent=m; }
     function errmsg(id,m){ const el=document.getElementById(id); el.className='status err'; el.style.display='block'; el.textContent=m; }
 
-    /* CAMERA FLOW */
+    // CAMERA
     async function startCamera(){
       try{
         info('camStatus','Requesting camera & mic…');
@@ -481,13 +426,14 @@
           video: { facingMode:'environment', width:{ideal:1920}, height:{ideal:1080} },
           audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }
         });
+        document.getElementById('cameraVideo').srcObject = localStream;
 
         pc = new RTCPeerConnection(rtcConfig);
 
-        // Auto-advance when the connection is up
+        // Auto-advance to Camera Live when connected
         pc.onconnectionstatechange = ()=>{
           if (pc.connectionState === 'connected' && current !== P.cam3) goto(P.cam3);
-        }; /* Advance on connection to avoid stalling the flow. [web:314][web:312] */
+        }; // connectionstatechange → connected indicates the peers are up [web:314][web:312]
 
         dataChannel = pc.createDataChannel('ctrl');
         dataChannel.onmessage = (ev)=>{
@@ -501,7 +447,7 @@
 
         localStream.getTracks().forEach(tr => pc.addTrack(tr, localStream));
 
-        // Show remote talk-back audio on camera
+        // Remote talk-back audio
         pc.ontrack = (e)=>{
           if (e.track.kind==='audio' && e.streams[0]){
             const ra = new Audio();
@@ -516,7 +462,6 @@
           if (pc.iceGatheringState==='complete'){
             const offerPkg = { sdp: pc.localDescription, candidates: gathered };
             document.getElementById('offerText').value = JSON.stringify(offerPkg);
-            saveLocal('lastOffer', offerPkg);
             okmsg('camStatus','Offer ready. Copy and send to Monitor. ');
           }
         };
@@ -535,13 +480,12 @@
         await pc.setRemoteDescription(answer.sdp);
         if (answer.candidates) for (const c of answer.candidates) await pc.addIceCandidate(c);
         okmsg('camStatus2','Connected. Monitor can control sounds. ');
-        saveLocal('lastAnswer', answer);
-        // Ensure the wizard advances immediately after successful connect
+        // Advance immediately on successful connect
         if (current !== P.cam3) goto(P.cam3);
       }catch(e){ errmsg('camStatus2','Error: '+e.message); }
     }
 
-    /* MONITOR FLOW */
+    // MONITOR
     async function createAnswer(){
       try{
         const raw = document.getElementById('offerInput').value.trim();
@@ -551,14 +495,13 @@
         const offer = JSON.parse(raw);
         pc = new RTCPeerConnection(rtcConfig);
 
-        // DataChannel from camera
         pc.ondatachannel = ev => {
           dataChannel = ev.channel;
           dataChannel.onopen = () => {
             startPinging();
-            // Advance to live view as soon as control is ready
+            // Move to Monitor Live when control is ready
             if (current !== P.mon3) goto(P.mon3);
-          }; /* DC open => control available; proceed to live. [web:317] */
+          }; // DataChannel readyState 'open' means control path is available [web:317]
           dataChannel.onmessage = e => {
             try{
               const msg = JSON.parse(e.data);
@@ -571,7 +514,6 @@
           };
         };
 
-        // Fallback: when peer connection is fully connected and DC is open
         pc.onconnectionstatechange = ()=>{
           if (pc.connectionState === 'connected' && dataChannel && dataChannel.readyState === 'open'){
             enableSoundControls();
@@ -579,9 +521,8 @@
             if (current !== P.mon3) goto(P.mon3);
             stopPinging();
           }
-        }; /* Use connection state to guarantee progress on all browsers. [web:312][web:314] */
+        }; // connectionState + DC open ensures robust progress across browsers [web:312][web:314]
 
-        // Show camera video on monitor
         pc.ontrack = e => {
           if (e.track.kind==='video'){
             document.getElementById('monitorVideo').srcObject = e.streams[0];
@@ -589,7 +530,6 @@
           }
         };
 
-        // Add monitor mic (muted by default)
         try{
           monitorMicStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }});
           monitorMicTrack = monitorMicStream.getAudioTracks()[0];
@@ -603,9 +543,7 @@
           if (pc.iceGatheringState==='complete'){
             const answerPkg = { sdp: pc.localDescription, candidates: gathered };
             document.getElementById('answerText').value = JSON.stringify(answerPkg);
-            saveLocal('lastAnswer', answerPkg);
             okmsg('monStatus','Answer ready. Copy and send to Camera. ');
-            // Keep Next enabled here as a manual fallback
             setNext(true);
           }
         };
@@ -618,14 +556,15 @@
       }catch(e){ errmsg('monStatus','Error: '+e.message); }
     }
 
-    // Handshake ping loop (monitor -> camera)
+    // Pinging monitor -> camera for handshake ready
     function startPinging(){
       stopPinging();
       const hint = document.getElementById('soundHint'); let dots=0;
       pingTimer = setInterval(()=>{
         if (!dataChannel || dataChannel.readyState!=='open') return;
         try{ dataChannel.send(JSON.stringify({action:'ping'})); }catch{}
-        dots=(dots+1)%4; hint.textContent = 'Waiting for Camera handshake' + '.'.repeat(dots);
+        dots=(dots+1)%4;
+        if (hint) hint.textContent = 'Waiting for Camera handshake' + '.'.repeat(dots);
       }, 800);
     }
     function stopPinging(){ if (pingTimer){ clearInterval(pingTimer); pingTimer=null; } }
@@ -662,9 +601,8 @@
       if (monitorMicTrack) monitorMicTrack.enabled = false;
     }
 
-    /* CAMERA audio engine: exclusive playback */
+    // CAMERA audio engine (exclusive)
     let audioCtx=null, gain=null, currentOsc=null, currentSrc=null, melodyTimer=null, melodyActive=false;
-
     async function ensureAudio(){
       if (!audioCtx){
         audioCtx = new (window.AudioContext||window.webkitAudioContext)();
@@ -672,13 +610,16 @@
       }
       if (audioCtx.state==='suspended'){ try{ await audioCtx.resume(); }catch{} }
     }
-
     function stopSoundOnCamera(){
-      melodyActive=false; if (melodyTimer){ try{ clearTimeout(melodyTimer); }catch{} melodyTimer=null;
-      try{ if (currentOsc){ currentOsc.onended=null; currentOsc.stop(0); } }catch{} try{ if (currentOsc) currentOsc.disconnect(); }catch{} currentOsc=null;
-      try{ if (currentSrc){ currentSrc.onended=null; currentSrc.stop(0); } }catch{} try{ if (currentSrc) currentSrc.disconnect(); }catch{} currentSrc=null;
+      melodyActive=false;
+      if (melodyTimer){ try{ clearTimeout(melodyTimer); }catch{} melodyTimer=null; }
+      try{ if (currentOsc){ currentOsc.onended=null; currentOsc.stop(0); } }catch{}
+      try{ if (currentOsc){ currentOsc.disconnect(); } }catch{}
+      currentOsc=null;
+      try{ if (currentSrc){ currentSrc.onended=null; currentSrc.stop(0); } }catch{}
+      try{ if (currentSrc){ currentSrc.disconnect(); } }catch{}
+      currentSrc=null;
     }
-
     async function playSoundOnCamera(kind){
       await ensureAudio(); stopSoundOnCamera();
       if (kind==='whitenoise') return playWhiteNoise();
@@ -686,30 +627,40 @@
       if (kind==='lullaby1') return playMelody([261.63,261.63,392.00,392.00,440.00,440.00,392.00,349.23,349.23,329.63,329.63,293.66,293.66,261.63], .52, 620);
       if (kind==='lullaby2') return playMelody([329.63,293.66,293.66,329.63,293.66,261.63,293.66,329.63,329.63,293.66], .52, 620);
     }
-
     function playMelody(notes, noteDur=.5, gapMs=620){
       melodyActive=true; let i=0;
       const step=()=>{ if (!melodyActive) return;
-        const osc=audioCtx.createOscillator(); osc.type='sine'; osc.frequency.value=notes[i]; osc.connect(gain); currentOsc=osc;
-        const stopAt=audioCtx.currentTime + noteDur; osc.start(); osc.stop(stopAt);
+        const osc=audioCtx.createOscillator();
+        osc.type='sine'; osc.frequency.value=notes[i];
+        osc.connect(gain); currentOsc=osc;
+        const stopAt=audioCtx.currentTime + noteDur;
+        osc.start(); osc.stop(stopAt);
         osc.onended=()=>{ if (!melodyActive) return; i=(i+1)%notes.length; melodyTimer=setTimeout(step, gapMs); };
-      }; step();
+      };
+      step();
     }
-
     function playWhiteNoise(){
-      const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0);
+      const n=audioCtx.sampleRate*2;
+      const buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate);
+      const ch=buf.getChannelData(0);
       for(let i=0;i<n;i++) ch[i]=Math.random()*2-1;
-      const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(gain); src.start(0); currentSrc=src;
+      const src=audioCtx.createBufferSource();
+      src.buffer=buf; src.loop=true; src.connect(gain); src.start(0);
+      currentSrc=src;
     }
-
     function playRain(){
-      const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0);
+      const n=audioCtx.sampleRate*2;
+      const buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate);
+      const ch=buf.getChannelData(0);
       for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*0.5;
-      const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900;
-      const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(lp); lp.connect(gain); src.start(0); currentSrc=src;
+      const lp=audioCtx.createBiquadFilter();
+      lp.type='lowpass'; lp.frequency.value=900;
+      const src=audioCtx.createBufferSource();
+      src.buffer=buf; src.loop=true; src.connect(lp); lp.connect(gain); src.start(0);
+      currentSrc=src;
     }
 
-    // Init
+    // Initialize UI
     configureTop();
   </script>
 </body>
