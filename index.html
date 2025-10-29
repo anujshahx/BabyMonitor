@@ -23,8 +23,8 @@
     .title { color: #e5e7eb; font-weight: 600; font-size: 13px; opacity: .9; margin-left: 12px; }
     .content { position: relative; height: 100%; width: 100%; padding: var(--pad); padding-bottom: calc(var(--nav-h) + var(--pad)); display: grid; place-items: center; }
     .card { width: min(720px, 100%); height: 100%; background: var(--bg-card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; display: grid; grid-template-rows: 1fr; position: relative; }
-    .panel { position: absolute; inset: 0; padding: var(--pad); display: none; background: radial-gradient(900px 450px at 120% -20%, rgba(123,97,255,.15) 0%, rgba(255,255,255,0) 60%), linear-gradient(180deg,#ffffff 0%, #f7f9fb 70%); }
-    .panel.active { display: block; }
+    .panel { position: absolute; inset: 0; padding: var(--pad); display: none; pointer-events: none; background: radial-gradient(900px 450px at 120% -20%, rgba(123,97,255,.15) 0%, rgba(255,255,255,0) 60%), linear-gradient(180deg,#ffffff 0%, #f7f9fb 70%); }
+    .panel.active { display: block; pointer-events: auto; }
     .enter-right { animation: enter-right .28s ease both; }
     .leave-left  { animation: leave-left  .28s ease both; }
     .enter-left  { animation: enter-left  .28s ease both; }
@@ -71,7 +71,7 @@
 <body>
   <div class="app">
     <div class="appbar">
-      <button id="backBtn" class="back" aria-label="Back" title="Back">
+      <button id="backBtn" class="back" aria-label="Back" title="Back" onclick="goBack()">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
       </button>
       <div class="brand">
@@ -92,10 +92,10 @@
           <div class="section"><span class="num">•</span>Choose what this device will do</div>
           <div class="stack">
             <div class="row" style="grid-template-columns: 1fr 1fr; gap: 12px;">
-              <button id="btnCamera" class="btn">📷 Use as Camera</button>
-              <button id="btnMonitor" class="btn secondary">📺 Use as Monitor</button>
+              <button id="btnCamera" class="btn" onclick="chooseRole('camera')">📷 Use as Camera</button>
+              <button id="btnMonitor" class="btn secondary" onclick="chooseRole('monitor')">📺 Use as Monitor</button>
             </div>
-            <button id="btnResume" class="btn hidden">↩ Resume previous pairing</button>
+            <button id="btnResume" class="btn hidden" onclick="resumePrevious()">↩ Resume previous pairing</button>
             <div class="status info">No login needed; share a code once to connect securely peer‑to‑peer. </div>
             <div class="status info">Tip: Keep both phones on the same network for the fastest pairing. </div>
           </div>
@@ -106,11 +106,11 @@
           <div class="section"><span class="num">1</span>Start camera & generate offer</div>
           <div class="stack">
             <div id="camStatus" class="status info">Press Start to allow camera & mic. </div>
-            <div class="row"><button class="btn" id="btnStartCam">▶ Start Camera</button></div>
+            <div class="row"><button class="btn" id="btnStartCam" onclick="startCamera()">▶ Start Camera</button></div>
             <div class="row">
               <textarea id="offerText" readonly placeholder="Offer will appear here after ICE gathering…"></textarea>
               <div class="row" style="grid-template-columns: auto 1fr; gap: 8px;">
-                <button class="btn copy" id="btnCopyOffer">📋 Copy Offer</button>
+                <button class="btn copy" id="btnCopyOffer" onclick="copyText('offerText')">📋 Copy Offer</button>
                 <div class="status info" id="copyOfferMsg" style="display:none;">Copied. Send to Monitor. </div>
               </div>
             </div>
@@ -123,13 +123,13 @@
           <div class="section"><span class="num">2</span>Paste answer from Monitor & connect</div>
           <div class="stack">
             <textarea id="answerInput" placeholder="Paste answer JSON here…"></textarea>
-            <div class="row"><button class="btn secondary" id="btnConnectCam">✓ Connect</button></div>
+            <div class="row"><button class="btn secondary" id="btnConnectCam" onclick="connectCamera()">✓ Connect</button></div>
             <div id="camStatus2" class="status info" style="display:none;"></div>
             <div class="note" id="resumeNoteCam2" style="display:none;">This answer was saved previously; a new answer is required for a fresh connection. </div>
           </div>
         </section>
 
-        <!-- Camera 3 (final) -->
+        <!-- Camera 3 -->
         <section id="cam3" class="panel">
           <div class="section"><span class="num">✓</span>Camera is live</div>
           <div class="stack">
@@ -144,7 +144,7 @@
           <div class="section"><span class="num">1</span>Paste offer from Camera</div>
           <div class="stack">
             <textarea id="offerInput" placeholder="Paste offer JSON here…"></textarea>
-            <div class="row"><button class="btn" id="btnCreateAnswer">🔗 Create Answer</button></div>
+            <div class="row"><button class="btn" id="btnCreateAnswer" onclick="createAnswer()">🔗 Create Answer</button></div>
             <div id="monStatus" class="status info" style="display:none;"></div>
             <div class="note" id="resumeNoteMon1" style="display:none;">Loaded a previous offer; use a fresh offer from the Camera for a new session. </div>
           </div>
@@ -157,7 +157,7 @@
             <div class="row">
               <textarea id="answerText" readonly placeholder="Answer will appear here…"></textarea>
               <div class="row" style="grid-template-columns: auto 1fr; gap: 8px;">
-                <button class="btn copy" id="btnCopyAnswer">📋 Copy Answer</button>
+                <button class="btn copy" id="btnCopyAnswer" onclick="copyText('answerText')">📋 Copy Answer</button>
                 <div class="status info" id="copyAnswerMsg" style="display:none;">Copied. Send to Camera. </div>
               </div>
             </div>
@@ -165,13 +165,15 @@
           </div>
         </section>
 
-        <!-- Monitor 3 (final) -->
+        <!-- Monitor 3 -->
         <section id="mon3" class="panel">
           <div class="section"><span class="num">✓</span>Monitor live</div>
           <div class="stack">
             <div class="video">
               <video id="monitorVideo" autoplay playsinline muted></video>
-              <button id="micBtn" class="fab" title="Hold to Talk">🎤</button>
+              <button id="micBtn" class="fab" title="Hold to Talk"
+                onpointerdown="startTalking()" onpointerup="stopTalking()"
+                ontouchstart="startTalking()" ontouchend="stopTalking()">🎤</button>
             </div>
             <div class="controls">
               <div class="select">
@@ -183,8 +185,8 @@
                   <option value="rain">🌧️ Rain</option>
                 </select>
               </div>
-              <button class="pill" id="playBtn" disabled>▶ Play</button>
-              <button class="pill stop" id="stopBtn" disabled>⏹ Stop</button>
+              <button class="pill" id="playBtn" onclick="playSelected()" disabled>▶ Play</button>
+              <button class="pill stop" id="stopBtn" onclick="sendStop()" disabled>⏹ Stop</button>
             </div>
             <div id="soundHint" class="status info">Waiting for Camera handshake… </div>
           </div>
@@ -194,21 +196,18 @@
     </div>
 
     <div class="footer">
-      <button id="nextBtn" class="next" disabled>Next</button>
+      <button id="nextBtn" class="next" onclick="goNext()" disabled>Next</button>
     </div>
   </div>
 
   <script>
-    /* Wizard & UI state */
+    /* Wizard */
     const P = { home:'home', cam1:'cam1', cam2:'cam2', cam3:'cam3', mon1:'mon1', mon2:'mon2', mon3:'mon3' };
     let role = null, current = P.home, animLock = false;
-
     const titleEl = document.getElementById('title');
-    const backBtn = document.getElementById('backBtn');
     const nextBtn = document.getElementById('nextBtn');
-
     function setTitle(t){ titleEl.textContent = t; }
-    function setBack(v){ backBtn.style.visibility = v ? 'visible' : 'hidden'; }
+    function setBack(v){ document.getElementById('backBtn').style.visibility = v ? 'visible' : 'hidden'; }
     function setNext(v){ nextBtn.disabled = !v; }
 
     function switchPanelImmediate(nextId){
@@ -220,8 +219,7 @@
     }
     function switchPanel(nextId, dir='forward'){
       try{
-        if (animLock) return;
-        animLock = true;
+        if (animLock) return; animLock = true;
         const card = document.getElementById('card');
         const from = document.getElementById(current), to = document.getElementById(nextId);
         if (!from || !to){ animLock=false; return switchPanelImmediate(nextId); }
@@ -229,9 +227,7 @@
         from.classList.add(dir==='forward' ? 'leave-left' : 'leave-right');
         to.classList.add('active', dir==='forward' ? 'enter-right' : 'enter-left');
         setTimeout(()=>{ current = nextId; animLock=false; }, 280);
-      } catch {
-        animLock=false; switchPanelImmediate(nextId);
-      }
+      } catch { animLock=false; switchPanelImmediate(nextId); }
     }
     function goto(id, dir='forward'){ switchPanel(id, dir); configureTop(); }
     function configureTop(){
@@ -269,7 +265,7 @@
       }
     }
 
-    /* Clipboard with fallback */
+    /* Clipboard */
     async function copyText(textareaId){
       const el = document.getElementById(textareaId), txt = el.value || '';
       try {
@@ -280,41 +276,32 @@
       } catch(e){ alert('Copy failed: ' + e.message); }
     }
 
-    /* Storage helpers (localStorage for payload, cookie as tiny hint) */
+    /* Storage */
     function saveLocal(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch{} }
     function loadLocal(key){ try{ return JSON.parse(localStorage.getItem(key)||'null'); }catch{ return null; } }
     function setCookie(name, value, days=3){
       try{
-        if ((value||'').length > 3800) return; // keep cookie small
+        if ((value||'').length > 3800) return;
         const exp = new Date(Date.now()+days*864e5).toUTCString();
         document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; expires=${exp}; path=/; SameSite=Lax`;
       }catch{}
     }
-
-    /* Resume support */
     function updateResumeVisibility(){
       const hasRole = !!localStorage.getItem('lastRole');
-      const btn = document.getElementById('btnResume');
-      btn.classList.toggle('hidden', !hasRole);
+      document.getElementById('btnResume').classList.toggle('hidden', !hasRole);
     }
     function resumePrevious(){
       const lastRole = localStorage.getItem('lastRole');
       const lastOffer = loadLocal('lastOffer');
       const lastAnswer = loadLocal('lastAnswer');
-
       if (lastRole === 'camera'){
-        role = 'camera';
-        goto(P.cam1);
-        // Prefill offer if present (for reference only)
+        role='camera'; goto(P.cam1);
         if (lastOffer){ document.getElementById('offerText').value = JSON.stringify(lastOffer); document.getElementById('resumeNoteCam1').style.display='block'; }
-        // Jump to connect step and prefill last answer (for reference only)
         goto(P.cam2);
         if (lastAnswer){ document.getElementById('answerInput').value = JSON.stringify(lastAnswer); document.getElementById('resumeNoteCam2').style.display='block'; }
       } else if (lastRole === 'monitor'){
-        role = 'monitor';
-        goto(P.mon1);
+        role='monitor'; goto(P.mon1);
         if (lastOffer){ document.getElementById('offerInput').value = JSON.stringify(lastOffer); document.getElementById('resumeNoteMon1').style.display='block'; }
-        // Jump to copy answer step and prefill saved answer
         goto(P.mon2);
         if (lastAnswer){ document.getElementById('answerText').value = JSON.stringify(lastAnswer); }
         setNext(true);
@@ -336,9 +323,7 @@
         document.getElementById('cameraVideo').srcObject = localStream;
 
         pc = new RTCPeerConnection(rtcConfig);
-
-        // Auto-advance on connection
-        pc.onconnectionstatechange = () => { if (pc.connectionState === 'connected' && current!==P.cam3) goto(P.cam3); };
+        pc.onconnectionstatechange = () => { if (pc.connectionState === 'connected' && current!==P.cam3) goto(P.cam3); }; /* advance on connected */  /* [MDN connectionstatechange] */ 
 
         dataChannel = pc.createDataChannel('ctrl');
         dataChannel.onmessage = (ev)=>{ try{ const msg=JSON.parse(ev.data); if (msg.action==='play') playSoundOnCamera(msg.sound); if (msg.action==='stop') stopSoundOnCamera(); if (msg.action==='ping') dataChannel.send(JSON.stringify({action:'ready'})); }catch{} };
@@ -387,7 +372,7 @@
 
         pc.ondatachannel = ev => {
           dataChannel = ev.channel;
-          dataChannel.onopen = () => { startPinging(); if (current!==P.mon3) goto(P.mon3); };
+          dataChannel.onopen = () => { startPinging(); if (current!==P.mon3) goto(P.mon3); }; /* advance on open */  /* [MDN RTCDataChannel] */ 
           dataChannel.onmessage = e => {
             try{
               const msg=JSON.parse(e.data);
@@ -438,7 +423,7 @@
     function startTalking(){ const b=document.getElementById('micBtn'); b.classList.add('active'); b.textContent='🔴'; if (monitorMicTrack) monitorMicTrack.enabled=true; }
     function stopTalking(){ const b=document.getElementById('micBtn'); b.classList.remove('active'); b.textContent='🎤'; if (monitorMicTrack) monitorMicTrack.enabled=false; }
 
-    /* CAMERA audio engine (exclusive) */
+    /* CAMERA audio engine */
     let audioCtx=null, gain=null, currentOsc=null, currentSrc=null, melodyTimer=null, melodyActive=false;
     async function ensureAudio(){ if (!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); gain = audioCtx.createGain(); gain.gain.value=.28; gain.connect(audioCtx.destination); } if (audioCtx.state==='suspended'){ try{ await audioCtx.resume(); }catch{} } }
     function stopSoundOnCamera(){ melodyActive=false; if (melodyTimer){ try{ clearTimeout(melodyTimer); }catch{} melodyTimer=null; try{ if (currentOsc){ currentOsc.onended=null; currentOsc.stop(0); } }catch{} try{ if (currentOsc) currentOsc.disconnect(); }catch{} currentOsc=null; try{ if (currentSrc){ currentSrc.onended=null; currentSrc.stop(0); } }catch{} try{ if (currentSrc) currentSrc.disconnect(); }catch{} currentSrc=null; }
@@ -447,35 +432,12 @@
     function playWhiteNoise(){ const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0); for(let i=0;i<n;i++) ch[i]=Math.random()*2-1; const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(gain); src.start(0); currentSrc=src; }
     function playRain(){ const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0); for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*0.5; const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900; const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(lp); lp.connect(gain); src.start(0); currentSrc=src; }
 
-    /* Bind events after DOM is ready: robust home buttons and controls */
-    window.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('btnCamera')?.addEventListener('click', () => { role='camera'; localStorage.setItem('lastRole','camera'); goto(P.cam1); });
-      document.getElementById('btnMonitor')?.addEventListener('click', () => { role='monitor'; localStorage.setItem('lastRole','monitor'); goto(P.mon1); });
-      document.getElementById('btnResume')?.addEventListener('click', resumePrevious);
-
-      document.getElementById('backBtn')?.addEventListener('click', goBack);
-      document.getElementById('nextBtn')?.addEventListener('click', goNext);
-
-      document.getElementById('btnStartCam')?.addEventListener('click', startCamera);
-      document.getElementById('btnCopyOffer')?.addEventListener('click', () => copyText('offerText'));
-      document.getElementById('btnConnectCam')?.addEventListener('click', connectCamera);
-
-      document.getElementById('btnCreateAnswer')?.addEventListener('click', createAnswer);
-      document.getElementById('btnCopyAnswer')?.addEventListener('click', () => copyText('answerText'));
-
-      document.getElementById('micBtn')?.addEventListener('pointerdown', startTalking);
-      document.getElementById('micBtn')?.addEventListener('pointerup', stopTalking);
-      document.getElementById('micBtn')?.addEventListener('touchstart', startTalking);
-      document.getElementById('micBtn')?.addEventListener('touchend', stopTalking);
-
-      document.getElementById('playBtn')?.addEventListener('click', playSelected);
-      document.getElementById('stopBtn')?.addEventListener('click', sendStop);
-
+    /* Immediate binding (no reliance on DOMContentLoaded timing) */
+    (function bindUI(){
+      // If DOM is not ready yet, fallback on load
+      if (document.readyState === 'loading'){ window.addEventListener('load', bindUI, { once:true }); return; }
       updateResumeVisibility();
-    });
-
-    // Initialize top bar
-    (function init(){ /* no-op; configureTop is called on first goto */ })();
+    })();
   </script>
 </body>
 </html>
