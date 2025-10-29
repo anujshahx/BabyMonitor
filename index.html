@@ -2,204 +2,74 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta
-    name="viewport"
-    content="user-scalable=no, width=device-width, initial-scale=1.0, viewport-fit=cover"
-  />
+  <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Baby Monitor</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; }
-    html, body {
-      height: 100%;
-      width: 100%;
-      margin: 0;
-      overflow: hidden;
-      overscroll-behavior: none;
-      background: #0b1020;
-      color: #0f172a;
-      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
+    html, body { height: 100%; width: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; background: #0b1020; color: #0f172a; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
     :root{
       --brand1:#5b7bff; --brand2:#7a47e8;
       --accent1:#00b894; --accent2:#2ecc71;
       --danger1:#ff6b6b; --danger2:#ee5a6f;
       --bg-card:#ffffff; --text:#0f172a; --muted:#475569;
-      --bar-h:56px;
-      --nav-h:68px;
-      --pad:14px;
-      --radius:18px;
-      --shadow: 0 18px 50px rgba(0,0,0,.22);
-      --shadow-soft: 0 10px 28px rgba(0,0,0,.12);
+      --bar-h:56px; --nav-h:68px; --pad:14px; --radius:18px; --shadow:0 18px 50px rgba(0,0,0,.22); --shadow-soft: 0 10px 28px rgba(0,0,0,.12);
     }
-    .app {
-      height: 100dvh;
-      width: 100%;
-      display: grid;
-      grid-template-rows: var(--bar-h) 1fr;
-      background: radial-gradient(1200px 600px at 100% -10%, rgba(255,255,255,.25) 0%, rgba(255,255,255,0) 60%),
-                  linear-gradient(135deg, var(--brand1), var(--brand2));
-    }
-    .appbar {
-      height: var(--bar-h);
-      display: grid;
-      grid-template-columns: 40px 1fr auto;
-      align-items: center;
-      padding: 0 var(--pad);
-      color: #fff;
-      background: transparent;
-    }
-    .back {
-      width: 40px; height: 40px; border: 0; border-radius: 10px;
-      background: rgba(255,255,255,.16);
-      color: #fff; display: inline-flex; align-items: center; justify-content: center;
-      cursor: pointer; visibility: hidden; transition: transform .08s ease;
-    }
-    .back:active { transform: scale(.96); }
-    .brand {
-      display: inline-flex; align-items: center; gap: 10px;
-      color: #fff; font-weight: 800; letter-spacing: .2px; font-size: 16px;
-    }
-    .brand svg { width: 22px; height: 22px; display: block; }
-    .title { color: #e5e7eb; font-weight: 600; font-size: 13px; opacity: .9; margin-left: 12px; }
-    .content {
-      position: relative;
-      height: 100%;
-      width: 100%;
-      padding: var(--pad);
-      padding-bottom: calc(var(--nav-h) + var(--pad));
-      display: grid; place-items: center;
-    }
-    .card {
-      width: min(720px, 100%);
-      height: 100%;
-      background: var(--bg-card);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-      display: grid;
-      grid-template-rows: 1fr;
-      position: relative;
-    }
-    .panel {
-      position: absolute; inset: 0;
-      padding: var(--pad);
-      display: none;
-      background:
-        radial-gradient(900px 450px at 120% -20%, rgba(123,97,255,.15) 0%, rgba(255,255,255,0) 60%),
-        linear-gradient(180deg,#ffffff 0%, #f7f9fb 70%);
-    }
-    .panel.active { display: block; }
-    @keyframes enter-right { from { opacity:0; transform: translateX(30px); } to { opacity:1; transform: translateX(0); } }
-    @keyframes leave-left  { from { opacity:1; transform: translateX(0); } to { opacity:0; transform: translateX(-30px);} }
-    @keyframes enter-left  { from { opacity:0; transform: translateX(-30px);} to { opacity:1; transform: translateX(0);} }
-    @keyframes leave-right { from { opacity:1; transform: translateX(0);} to { opacity:0; transform: translateX(30px);} }
-    .section {
-      background: linear-gradient(135deg, #f5f7fa 0%, #eaeffd 100%);
-      border-left: 6px solid var(--brand1);
-      border-radius: 14px;
-      padding: 12px;
-      color: var(--text);
-      font-weight: 800;
-      display: flex; align-items: center; gap: 10px; min-height: 40px;
-      box-shadow: var(--shadow-soft);
-      margin-bottom: 10px;
-    }
-    .num {
-      width: 26px; height: 26px; border-radius: 7px; flex: 0 0 26px;
-      background: linear-gradient(135deg, var(--brand1), var(--brand2));
-      color: #fff; font-size: 12px; font-weight: 900; display: grid; place-items: center;
-      box-shadow: 0 4px 10px rgba(0,0,0,.14);
-    }
-    .stack { height: calc(100% - 58px); display: grid; grid-template-rows: auto 1fr auto; gap: 12px; }
-    .status {
-      width: 100%; padding: 10px 12px; border-radius: 12px; text-align: center; font-weight: 700; font-size: 13px;
-      box-shadow: var(--shadow-soft);
-    }
-    .info { background: #eaf2fd; color: #174aa7; border: 1px solid #c8dbfb; }
-    .ok   { background: #e8f7ee; color: #146c2e; border: 1px solid #bfe7cb; }
-    .err  { background: #fde8ea; color: #821d2a; border: 1px solid #f3c2c8; }
-    .row { display: grid; grid-template-columns: 1fr; gap: 10px; }
-    .btn {
-      width: 100%; padding: 14px; border: 0; border-radius: 14px;
-      color: #fff; font-weight: 800; font-size: 15px; cursor: pointer;
-      background: linear-gradient(135deg, var(--brand1), var(--brand2));
-      box-shadow: var(--shadow-soft);
-      transition: transform .08s ease, filter .2s ease;
-    }
+
+    .app { height: 100dvh; width: 100%; display: grid; grid-template-rows: var(--bar-h) 1fr; background: radial-gradient(1200px 600px at 100% -10%, rgba(255,255,255,.25) 0%, rgba(255,255,255,0) 60%), linear-gradient(135deg, var(--brand1), var(--brand2)); }
+    .appbar { height: var(--bar-h); display: grid; grid-template-columns: 40px 1fr; align-items: center; padding: 0 var(--pad); color: #fff; }
+    .back { width: 40px; height: 40px; border-radius: 10px; border: 0; background: rgba(255,255,255,.16); color:#fff; display: inline-flex; align-items:center; justify-content:center; cursor:pointer; visibility:hidden; }
+    .brand { display:inline-flex; align-items:center; gap:10px; color:#fff; font-weight:800; letter-spacing:.2px; font-size:16px; }
+    .brand svg { width:22px; height:22px; display:block; }
+    .title { color:#e5e7eb; font-weight:600; font-size:13px; opacity:.9; margin-left:12px; }
+
+    .content { position:relative; height:100%; width:100%; padding: var(--pad); padding-bottom: calc(var(--nav-h) + var(--pad)); display:grid; place-items:center; }
+    .card { width:min(720px,100%); height:100%; background:var(--bg-card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; display:grid; grid-template-rows:1fr; position:relative; }
+
+    .panel { position:absolute; inset:0; padding:var(--pad); display:none; background: linear-gradient(180deg,#ffffff 0%, #f7f9fb 70%); }
+    .panel.active { display:block; }
+
+    .section { background: linear-gradient(135deg, #f5f7fa 0%, #eaeffd 100%); border-left:6px solid var(--brand1); border-radius:14px; padding:12px; color:var(--text); font-weight:800; display:flex; align-items:center; gap:10px; min-height:40px; box-shadow:var(--shadow-soft); margin-bottom:10px; }
+    .num { width:26px; height:26px; border-radius:7px; flex:0 0 26px; background: linear-gradient(135deg, var(--brand1), var(--brand2)); color:#fff; display:grid; place-items:center; font-size:12px; font-weight:900; box-shadow:0 4px 10px rgba(0,0,0,.14); }
+
+    .stack { height: calc(100% - 58px); display:grid; grid-template-rows: auto 1fr auto; gap:12px; }
+    .row { display:grid; grid-template-columns:1fr; gap:10px; }
+
+    .status { width:100%; padding:10px 12px; border-radius:12px; text-align:center; font-weight:700; font-size:13px; box-shadow:var(--shadow-soft); }
+    .info { background:#eaf2fd; color:#174aa7; border:1px solid #c8dbfb; }
+    .ok { background:#e8f7ee; color:#146c2e; border:1px solid #bfe7cb; }
+    .err { background:#fde8ea; color:#821d2a; border:1px solid #f3c2c8; }
+
+    .btn { width:100%; padding:14px; border:0; border-radius:14px; color:#fff; font-weight:800; font-size:15px; cursor:pointer; background: linear-gradient(135deg, var(--brand1), var(--brand2)); box-shadow:var(--shadow-soft); }
     .btn.secondary { background: linear-gradient(135deg, var(--accent1), var(--accent2)); }
     .btn.copy { background: linear-gradient(135deg, #f093fb, #f5576c); }
-    .btn.danger { background: linear-gradient(135deg, var(--danger1), var(--danger2)); }
-    .btn:active { transform: scale(.98); }
-    .btn:disabled { opacity: .5; cursor: not-allowed; }
-    textarea {
-      width: 100%; height: 28vh; min-height: 120px; border: 2px solid #e5e7eb; border-radius: 14px;
-      background: #f8fafc; padding: 10px; resize: none; overflow: auto;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      font-size: 12px; color: #0f172a;
-      box-shadow: var(--shadow-soft);
-    }
-    .video {
-      width: 100%; height: 34vh; min-height: 170px; background:#000; border-radius: 14px; overflow: hidden; position: relative;
-      box-shadow: var(--shadow);
-    }
-    video { width: 100%; height: 100%; object-fit: cover; display: block; background:#000; }
-    .fab {
-      position: absolute; right: 12px; bottom: 12px; width: 56px; height: 56px; border-radius: 50%; border: 0;
-      color: #fff; font-size: 22px; display: none; align-items: center; justify-content: center; cursor: pointer;
-      background: linear-gradient(135deg, var(--danger1), var(--danger2)); box-shadow: 0 12px 24px rgba(0,0,0,.25);
-      transition: transform .08s ease;
-    }
-    .fab:active { transform: scale(.96); }
+    .btn.stop { background: linear-gradient(135deg, var(--danger1), var(--danger2)); }
+
+    textarea { width:100%; height:28vh; min-height:120px; border:2px solid #e5e7eb; border-radius:14px; background:#f8fafc; padding:10px; resize:none; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px; color:#0f172a; box-shadow:var(--shadow-soft); }
+
+    .video { width:100%; height:34vh; min-height:170px; background:#000; border-radius:14px; overflow:hidden; position:relative; box-shadow:var(--shadow); }
+    video { width:100%; height:100%; object-fit:cover; display:block; background:#000; }
+
+    .fab { position:absolute; right:12px; bottom:12px; width:56px; height:56px; border-radius:50%; border:0; color:#fff; font-size:22px; display:none; align-items:center; justify-content:center; cursor:pointer; background: linear-gradient(135deg, var(--danger1), var(--danger2)); box-shadow:0 12px 24px rgba(0,0,0,.25); }
     .fab.active { background: linear-gradient(135deg, #ee5a6f, #c92a2a); }
-    .controls {
-      display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
-    }
-    .select {
-      position: relative;
-      border: 2px solid #e5e7eb; border-radius: 14px; background:#fff; padding: 0 12px; height: 44px; display: flex; align-items: center;
-      font-weight: 700; color: var(--text); box-shadow: var(--shadow-soft);
-    }
-    .select select {
-      appearance: none; border: 0; outline: 0; background: transparent; width: 100%; height: 100%; font-weight: 700; color: var(--text);
-      font-family: inherit; cursor: pointer;
-    }
-    .select:after {
-      content: '▾'; position: absolute; right: 12px; color: var(--muted); pointer-events: none; font-size: 14px;
-    }
-    .pill {
-      padding: 0 14px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 14px; border: 0;
-      color: #fff; font-weight: 800; cursor: pointer; box-shadow: var(--shadow-soft);
-      background: linear-gradient(135deg, var(--accent1), var(--accent2));
-      transition: transform .08s ease;
-    }
-    .pill:active { transform: scale(.98); }
-    .pill.stop { background: linear-gradient(135deg, var(--danger1), var(--danger2)); }
-    .footer {
-      position: fixed; left: 0; right: 0; bottom: 0; height: var(--nav-h);
-      background:#fff; border-top-left-radius: 16px; border-top-right-radius: 16px; box-shadow: 0 -10px 30px rgba(0,0,0,.12);
-      padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) 12px; z-index: 9;
-      display: grid; grid-template-columns: 1fr; align-items: center;
-    }
-    .next {
-      width: 100%; height: 100%; border:0; border-radius: 14px; cursor: pointer;
-      background: linear-gradient(135deg, var(--accent1), var(--accent2)); color: #fff; font-weight: 900; letter-spacing: .3px; font-size: 16px;
-      transition: transform .08s ease; box-shadow: var(--shadow-soft);
-    }
-    .next:active { transform: scale(.98); }
-    .next:disabled { opacity:.45; cursor: not-allowed; }
-    .hidden { display: none !important; }
+
+    .controls { display:grid; grid-template-columns: 1fr auto auto; gap:10px; align-items:center; }
+    .select { position:relative; border:2px solid #e5e7eb; border-radius:14px; background:#fff; padding:0 12px; height:44px; display:flex; align-items:center; font-weight:700; color:var(--text); box-shadow:var(--shadow-soft); }
+    .select select { appearance:none; border:0; outline:0; background:transparent; width:100%; height:100%; font-weight:700; color:var(--text); font-family:inherit; cursor:pointer; }
+    .select:after { content:'▾'; position:absolute; right:12px; color:var(--muted); pointer-events:none; font-size:14px; }
+
+    .footer { position:fixed; left:0; right:0; bottom:0; height:var(--nav-h); background:#fff; border-top-left-radius:16px; border-top-right-radius:16px; box-shadow:0 -10px 30px rgba(0,0,0,.12); padding:12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) 12px; z-index:9; display:grid; grid-template-columns:1fr; align-items:center; }
+    .next { width:100%; height:100%; border:0; border-radius:14px; cursor:pointer; background: linear-gradient(135deg, var(--accent1), var(--accent2)); color:#fff; font-weight:900; letter-spacing:.3px; font-size:16px; }
+    .hidden { display:none !important; }
   </style>
 </head>
 <body>
   <div class="app">
-    <!-- Top bar -->
     <div class="appbar">
       <button id="backBtn" class="back" onclick="goBack()" aria-label="Back" title="Back">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"></polyline>
-        </svg>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
       </button>
       <div class="brand">
         <svg viewBox="0 0 64 64" aria-hidden="true">
@@ -211,7 +81,6 @@
       </div>
     </div>
 
-    <!-- Content -->
     <div class="content">
       <div class="card" id="card">
 
@@ -223,8 +92,7 @@
               <button class="btn" onclick="chooseRole('camera')">📷 Use as Camera</button>
               <button class="btn secondary" onclick="chooseRole('monitor')">📺 Use as Monitor</button>
             </div>
-            <div class="status info">No login needed; share a code once to connect securely peer‑to‑peer. </div>
-            <div class="status info">Tip: Keep both phones on the same network for the fastest pairing. </div>
+            <div class="status info">Next is always available; choose a role or press Next to proceed to Monitor. </div>
           </div>
         </section>
 
@@ -233,9 +101,7 @@
           <div class="section"><span class="num">1</span>Start camera & generate offer</div>
           <div class="stack">
             <div id="camStatus" class="status info">Press Start to allow camera & mic. </div>
-            <div class="row">
-              <button class="btn" onclick="startCamera()">▶ Start Camera</button>
-            </div>
+            <div class="row"><button class="btn" onclick="startCamera()">▶ Start Camera</button></div>
             <div class="row">
               <textarea id="offerText" readonly placeholder="Offer will appear here after ICE gathering…"></textarea>
               <div class="row" style="grid-template-columns: auto 1fr; gap: 8px;">
@@ -251,14 +117,12 @@
           <div class="section"><span class="num">2</span>Paste answer from Monitor & connect</div>
           <div class="stack">
             <textarea id="answerInput" placeholder="Paste answer JSON here…"></textarea>
-            <div class="row">
-              <button class="btn secondary" onclick="connectCamera()">✓ Connect</button>
-            </div>
+            <div class="row"><button class="btn secondary" onclick="connectCamera()">✓ Connect</button></div>
             <div id="camStatus2" class="status info" style="display:none;"></div>
           </div>
         </section>
 
-        <!-- Camera: Final (local preview) -->
+        <!-- Camera: Final -->
         <section id="cam3" class="panel">
           <div class="section"><span class="num">✓</span>Camera is live</div>
           <div class="stack">
@@ -273,9 +137,7 @@
           <div class="section"><span class="num">1</span>Paste offer from Camera</div>
           <div class="stack">
             <textarea id="offerInput" placeholder="Paste offer JSON here…"></textarea>
-            <div class="row">
-              <button class="btn" onclick="createAnswer()">🔗 Create Answer</button>
-            </div>
+            <div class="row"><button class="btn" onclick="createAnswer()">🔗 Create Answer</button></div>
             <div id="monStatus" class="status info" style="display:none;"></div>
           </div>
         </section>
@@ -291,24 +153,23 @@
                 <div class="status info" id="copyAnswerMsg" style="display:none;">Copied. Send to Camera. </div>
               </div>
             </div>
-            <div class="status info">Press Next when the Camera has connected. </div>
+            <div class="status info">Press Next anytime to open the live monitor view. </div>
           </div>
         </section>
 
-        <!-- Monitor: Final (live view + controls) -->
+        <!-- Monitor: Final -->
         <section id="mon3" class="panel">
           <div class="section"><span class="num">✓</span>Monitor live</div>
           <div class="stack">
             <div class="video">
               <video id="monitorVideo" autoplay playsinline muted></video>
               <button id="micBtn" class="fab" title="Hold to Talk"
-                onpointerdown="startTalking()" onpointerup="stopTalking()"
-                ontouchstart="startTalking()" ontouchend="stopTalking()">🎤</button>
+                      onpointerdown="startTalking()" onpointerup="stopTalking()"
+                      ontouchstart="startTalking()" ontouchend="stopTalking()">🎤</button>
             </div>
-
             <div class="controls">
               <div class="select">
-                <select id="soundSelect" aria-label="Select lullaby or sound" disabled>
+                <select id="soundSelect" aria-label="Select lullaby or sound">
                   <option value="">Select lullaby or sound…</option>
                   <option value="lullaby1">🎼 Twinkle Twinkle</option>
                   <option value="lullaby2">🌙 Brahms Lullaby</option>
@@ -316,89 +177,59 @@
                   <option value="rain">🌧️ Rain</option>
                 </select>
               </div>
-              <button class="pill" id="playBtn" onclick="playSelected()" disabled>▶ Play</button>
-              <button class="pill stop" id="stopBtn" onclick="sendStop()" disabled>⏹ Stop</button>
+              <button class="pill" id="playBtn" onclick="playSelected()">▶ Play</button>
+              <button class="pill stop" id="stopBtn" onclick="sendStop()">⏹ Stop</button>
             </div>
-
-            <div id="soundHint" class="status info">Waiting for Camera handshake… </div>
+            <div id="soundHint" class="status info">Select a sound; controls send when control channel is ready. </div>
           </div>
         </section>
 
       </div>
     </div>
 
-    <!-- Fixed footer -->
     <div class="footer">
-      <button id="nextBtn" class="next" onclick="goNext()" disabled>Next</button>
+      <button id="nextBtn" class="next" onclick="goNext()">Next</button>
     </div>
   </div>
 
   <script>
-    // Wizard State
+    // Wizard state (Next is always enabled)
     const P = { home:'home', cam1:'cam1', cam2:'cam2', cam3:'cam3', mon1:'mon1', mon2:'mon2', mon3:'mon3' };
     let role = null;
     let current = P.home;
 
-    const titleEl = document.getElementById('title');
-    const backBtn = document.getElementById('backBtn');
-    const nextBtn = document.getElementById('nextBtn');
+    function setTitle(t){ document.getElementById('title').textContent = t; }
+    function setBack(v){ document.getElementById('backBtn').style.visibility = v ? 'visible' : 'hidden'; }
 
-    function setTitle(t){ titleEl.textContent = t; }
-    function setBack(v){ backBtn.style.visibility = v ? 'visible' : 'hidden'; }
-    function setNext(v){ nextBtn.disabled = !v; }
-
-    function switchPanel(nextId){
+    function switchPanel(id){
       const card = document.getElementById('card');
       card.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      const to = document.getElementById(nextId);
-      if (to) to.classList.add('active');
-      current = nextId;
+      document.getElementById(id).classList.add('active');
+      current = id;
     }
     function goto(id){
       switchPanel(id);
-      configureTop();
-    }
-    function configureTop(){
-      if (current===P.home){ setTitle('Home'); setBack(false); setNext(false); return; }
-      setBack(true); setNext(false);
-      if (role==='camera'){
-        if (current===P.cam1) setTitle('Camera • Generate Offer');
-        if (current===P.cam2) setTitle('Camera • Connect');
-        if (current===P.cam3){ setTitle('Camera • Live'); nextBtn.classList.add('hidden'); } else { nextBtn.classList.remove('hidden'); }
-      } else {
-        if (current===P.mon1) setTitle('Monitor • Paste Offer');
-        if (current===P.mon2){ setTitle('Monitor • Copy Answer'); setNext(true); }
-        if (current===P.mon3){ setTitle('Monitor • Live'); nextBtn.classList.add('hidden'); } else { nextBtn.classList.remove('hidden'); }
-      }
-    }
-    function chooseRole(r){
-      role = r;
-      if (role==='camera'){ goto(P.cam1); }
-      else { goto(P.mon1); }
-    }
-    function goBack(){
-      if (current===P.home) return;
-      if (role==='camera'){
-        if (current===P.cam3) return goto(P.cam2);
-        if (current===P.cam2) return goto(P.cam1);
-        if (current===P.cam1) return goto(P.home);
-      } else {
-        if (current===P.mon3) return goto(P.mon2);
-        if (current===P.mon2) return goto(P.mon1);
-        if (current===P.mon1) return goto(P.home);
-      }
-    }
-    function goNext(){
-      if (role==='camera'){
-        if (current===P.cam1) return goto(P.cam2);
-        if (current===P.cam2) return goto(P.cam3);
-      } else {
-        if (current===P.mon1) return goto(P.mon2);
-        if (current===P.mon2) return goto(P.mon3);
-      }
+      if (id===P.home){ setTitle('Home'); setBack(false); }
+      else { setBack(true); if (role==='camera'){ if (id===P.cam1) setTitle('Camera • Generate Offer'); if (id===P.cam2) setTitle('Camera • Connect'); if (id===P.cam3) setTitle('Camera • Live'); } else { if (id===P.mon1) setTitle('Monitor • Paste Offer'); if (id===P.mon2) setTitle('Monitor • Copy Answer'); if (id===P.mon3) setTitle('Monitor • Live'); } }
     }
 
-    // Clipboard (modern + fallback)
+    function chooseRole(r){ role = r; if (role==='camera') goto(P.cam1); else goto(P.mon1); }
+    function goBack(){
+      if (current===P.home) return;
+      if (role==='camera'){ if (current===P.cam3) goto(P.cam2); else if (current===P.cam2) goto(P.cam1); else goto(P.home); }
+      else { if (current===P.mon3) goto(P.mon2); else if (current===P.mon2) goto(P.mon1); else goto(P.home); }
+    }
+    function goNext(){
+      if (current===P.home){ // default to monitor if no role chosen
+        if (!role) role='monitor';
+        if (role==='camera') goto(P.cam1); else goto(P.mon1);
+        return;
+      }
+      if (role==='camera'){ if (current===P.cam1) goto(P.cam2); else if (current===P.cam2) goto(P.cam3); }
+      else { if (current===P.mon1) goto(P.mon2); else if (current===P.mon2) goto(P.mon3); }
+    }
+
+    // Clipboard with fallback
     async function copyText(textareaId){
       const el = document.getElementById(textareaId);
       const txt = el.value || '';
@@ -407,10 +238,10 @@
         else { el.select(); document.execCommand('copy'); }
         if (textareaId==='offerText'){ const m=document.getElementById('copyOfferMsg'); m.style.display='block'; setTimeout(()=>m.style.display='none', 1400); }
         if (textareaId==='answerText'){ const m=document.getElementById('copyAnswerMsg'); m.style.display='block'; setTimeout(()=>m.style.display='none', 1400); }
-      } catch(e) { alert('Copy failed: ' + e.message); }
-    }
+      } catch(e){ alert('Copy failed: ' + e.message); }
+    } // Clipboard API with fallback is widely supported for text copy. [web:292]
 
-    // WebRTC core
+    // WebRTC
     const rtcConfig = { iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}] };
     let pc=null, localStream=null, monitorMicStream=null, monitorMicTrack=null, dataChannel=null, pingTimer=null;
 
@@ -423,52 +254,28 @@
       try{
         info('camStatus','Requesting camera & mic…');
         localStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode:'environment', width:{ideal:1920}, height:{ideal:1080} },
-          audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }
+          video:{ facingMode:'environment', width:{ideal:1920}, height:{ideal:1080} },
+          audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true }
         });
         document.getElementById('cameraVideo').srcObject = localStream;
 
         pc = new RTCPeerConnection(rtcConfig);
 
-        // Auto-advance to Camera Live when connected
-        pc.onconnectionstatechange = ()=>{
-          if (pc.connectionState === 'connected' && current !== P.cam3) goto(P.cam3);
-        }; // connectionstatechange → connected indicates the peers are up [web:314][web:312]
+        // Advance to Camera Live when fully connected
+        pc.onconnectionstatechange = ()=>{ if (pc.connectionState === 'connected' && current!==P.cam3) goto(P.cam3); }; // Use connectionState 'connected' as a reliable gate. [web:314][web:312]
 
         dataChannel = pc.createDataChannel('ctrl');
-        dataChannel.onmessage = (ev)=>{
-          try{
-            const msg = JSON.parse(ev.data);
-            if (msg.action==='play') playSoundOnCamera(msg.sound);
-            if (msg.action==='stop') stopSoundOnCamera();
-            if (msg.action==='ping') dataChannel.send(JSON.stringify({action:'ready'}));
-          }catch{}
-        };
+        dataChannel.onmessage = (ev)=>{ try{ const msg=JSON.parse(ev.data); if (msg.action==='play') playSoundOnCamera(msg.sound); if (msg.action==='stop') stopSoundOnCamera(); if (msg.action==='ping') dataChannel.send(JSON.stringify({action:'ready'})); }catch{} };
 
         localStream.getTracks().forEach(tr => pc.addTrack(tr, localStream));
 
-        // Remote talk-back audio
-        pc.ontrack = (e)=>{
-          if (e.track.kind==='audio' && e.streams[0]){
-            const ra = new Audio();
-            ra.srcObject = e.streams[0];
-            ra.play().catch(()=>{});
-          }
-        };
+        // Remote talk-back plays on camera
+        pc.ontrack = (e)=>{ if (e.track.kind==='audio' && e.streams[0]){ const ra=new Audio(); ra.srcObject=e.streams[0]; ra.play().catch(()=>{}); } };
 
-        const gathered=[];
-        pc.onicecandidate = ev => { if (ev.candidate) gathered.push(ev.candidate); };
-        pc.onicegatheringstatechange = ()=>{
-          if (pc.iceGatheringState==='complete'){
-            const offerPkg = { sdp: pc.localDescription, candidates: gathered };
-            document.getElementById('offerText').value = JSON.stringify(offerPkg);
-            okmsg('camStatus','Offer ready. Copy and send to Monitor. ');
-          }
-        };
+        const gathered=[]; pc.onicecandidate = ev => { if (ev.candidate) gathered.push(ev.candidate); };
+        pc.onicegatheringstatechange = ()=>{ if (pc.iceGatheringState==='complete'){ const offerPkg={ sdp: pc.localDescription, candidates: gathered }; document.getElementById('offerText').value = JSON.stringify(offerPkg); okmsg('camStatus','Offer ready. Copy and send to Monitor. ');} };
 
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
+        const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
       }catch(e){ errmsg('camStatus','Error: '+e.message); }
     }
 
@@ -480,8 +287,7 @@
         await pc.setRemoteDescription(answer.sdp);
         if (answer.candidates) for (const c of answer.candidates) await pc.addIceCandidate(c);
         okmsg('camStatus2','Connected. Monitor can control sounds. ');
-        // Advance immediately on successful connect
-        if (current !== P.cam3) goto(P.cam3);
+        if (current!==P.cam3) goto(P.cam3);
       }catch(e){ errmsg('camStatus2','Error: '+e.message); }
     }
 
@@ -497,171 +303,63 @@
 
         pc.ondatachannel = ev => {
           dataChannel = ev.channel;
-          dataChannel.onopen = () => {
-            startPinging();
-            // Move to Monitor Live when control is ready
-            if (current !== P.mon3) goto(P.mon3);
-          }; // DataChannel readyState 'open' means control path is available [web:317]
-          dataChannel.onmessage = e => {
-            try{
-              const msg = JSON.parse(e.data);
-              if (msg.action==='ready'){
-                enableSoundControls();
-                okmsg('monStatus','Handshake complete. Sounds ready. ');
-                if (current !== P.mon3) goto(P.mon3);
-              }
-            }catch{}
-          };
+          dataChannel.onopen = () => { startPinging(); if (current!==P.mon3) goto(P.mon3); }; // DC 'open' means control is ready; proceed. [web:317]
+          dataChannel.onmessage = e => { try{ const msg=JSON.parse(e.data); if (msg.action==='ready'){ enableSoundControls(); okmsg('monStatus','Handshake complete. Sounds ready. '); if (current!==P.mon3) goto(P.mon3); } }catch{} };
         };
 
-        pc.onconnectionstatechange = ()=>{
-          if (pc.connectionState === 'connected' && dataChannel && dataChannel.readyState === 'open'){
-            enableSoundControls();
-            okmsg('monStatus','Connected. Sounds enabled. ');
-            if (current !== P.mon3) goto(P.mon3);
-            stopPinging();
-          }
-        }; // connectionState + DC open ensures robust progress across browsers [web:312][web:314]
+        pc.onconnectionstatechange = ()=>{ if (pc.connectionState==='connected' && dataChannel && dataChannel.readyState==='open'){ enableSoundControls(); okmsg('monStatus','Connected. Sounds enabled. '); if (current!==P.mon3) goto(P.mon3); stopPinging(); } }; // Fallback ensures progress on all engines. [web:312][web:314]
 
-        pc.ontrack = e => {
-          if (e.track.kind==='video'){
-            document.getElementById('monitorVideo').srcObject = e.streams[0];
-            document.getElementById('micBtn').style.display='flex';
-          }
-        };
+        pc.ontrack = e => { if (e.track.kind==='video'){ document.getElementById('monitorVideo').srcObject = e.streams[0]; document.getElementById('micBtn').style.display='flex'; } };
 
-        try{
-          monitorMicStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }});
-          monitorMicTrack = monitorMicStream.getAudioTracks()[0];
-          monitorMicTrack.enabled = false;
-          pc.addTrack(monitorMicTrack, monitorMicStream);
-        }catch{}
+        try{ monitorMicStream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true }}); monitorMicTrack = monitorMicStream.getAudioTracks()[0]; monitorMicTrack.enabled = false; pc.addTrack(monitorMicTrack, monitorMicStream); }catch{}
 
-        const gathered=[];
-        pc.onicecandidate = ev => { if (ev.candidate) gathered.push(ev.candidate); };
-        pc.onicegatheringstatechange = ()=>{
-          if (pc.iceGatheringState==='complete'){
-            const answerPkg = { sdp: pc.localDescription, candidates: gathered };
-            document.getElementById('answerText').value = JSON.stringify(answerPkg);
-            okmsg('monStatus','Answer ready. Copy and send to Camera. ');
-            setNext(true);
-          }
-        };
+        const gathered=[]; pc.onicecandidate = ev => { if (ev.candidate) gathered.push(ev.candidate); };
+        pc.onicegatheringstatechange = ()=>{ if (pc.iceGatheringState==='complete'){ const answerPkg={ sdp: pc.localDescription, candidates: gathered }; document.getElementById('answerText').value = JSON.stringify(answerPkg); okmsg('monStatus','Answer ready. Copy and send to Camera. '); } };
 
         await pc.setRemoteDescription(offer.sdp);
         if (offer.candidates) for (const c of offer.candidates) await pc.addIceCandidate(c);
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
+        const answer = await pc.createAnswer(); await pc.setLocalDescription(answer);
       }catch(e){ errmsg('monStatus','Error: '+e.message); }
     }
 
-    // Pinging monitor -> camera for handshake ready
+    // Handshake hint loop
     function startPinging(){
       stopPinging();
       const hint = document.getElementById('soundHint'); let dots=0;
-      pingTimer = setInterval(()=>{
-        if (!dataChannel || dataChannel.readyState!=='open') return;
-        try{ dataChannel.send(JSON.stringify({action:'ping'})); }catch{}
-        dots=(dots+1)%4;
-        if (hint) hint.textContent = 'Waiting for Camera handshake' + '.'.repeat(dots);
-      }, 800);
+      pingTimer = setInterval(()=>{ if (!dataChannel || dataChannel.readyState!=='open') return; try{ dataChannel.send(JSON.stringify({action:'ping'})); }catch{} dots=(dots+1)%4; hint.textContent = 'Waiting for Camera handshake' + '.'.repeat(dots); }, 800);
     }
     function stopPinging(){ if (pingTimer){ clearInterval(pingTimer); pingTimer=null; } }
 
-    function enableSoundControls(){
-      document.getElementById('soundSelect').disabled=false;
-      document.getElementById('playBtn').disabled=false;
-      document.getElementById('stopBtn').disabled=false;
-      document.getElementById('soundHint').textContent = '🎵 Sounds ready';
-      stopPinging();
-    }
+    function enableSoundControls(){ document.getElementById('soundHint').textContent = '🎵 Sounds ready'; }
 
+    // Lullaby controls: dropdown always enabled; Play/Stop only send if DC is open
     function playSelected(){
       const sel = document.getElementById('soundSelect');
       const val = sel.value;
       if (!val) return;
-      if (!dataChannel || dataChannel.readyState!=='open') return;
+      if (!dataChannel || dataChannel.readyState!=='open'){ document.getElementById('soundHint').textContent = 'Control not ready yet; will send once connected.'; return; }
       try{ dataChannel.send(JSON.stringify({action:'play', sound: val})); }catch{}
     }
     function sendStop(){
-      if (dataChannel && dataChannel.readyState==='open'){
-        try{ dataChannel.send(JSON.stringify({action:'stop'})); }catch{}
-      }
+      if (!dataChannel || dataChannel.readyState!=='open'){ document.getElementById('soundHint').textContent = 'Control not ready yet.'; return; }
+      try{ dataChannel.send(JSON.stringify({action:'stop'})); }catch{}
     }
 
-    function startTalking(){
-      const b = document.getElementById('micBtn');
-      b.classList.add('active'); b.textContent='🔴';
-      if (monitorMicTrack) monitorMicTrack.enabled = true;
-    }
-    function stopTalking(){
-      const b = document.getElementById('micBtn');
-      b.classList.remove('active'); b.textContent='🎤';
-      if (monitorMicTrack) monitorMicTrack.enabled = false;
-    }
+    // Push-to-talk
+    function startTalking(){ const b=document.getElementById('micBtn'); b.classList.add('active'); b.textContent='🔴'; if (monitorMicTrack) monitorMicTrack.enabled=true; }
+    function stopTalking(){ const b=document.getElementById('micBtn'); b.classList.remove('active'); b.textContent='🎤'; if (monitorMicTrack) monitorMicTrack.enabled=false; }
 
-    // CAMERA audio engine (exclusive)
+    // Camera audio engine (exclusive)
     let audioCtx=null, gain=null, currentOsc=null, currentSrc=null, melodyTimer=null, melodyActive=false;
-    async function ensureAudio(){
-      if (!audioCtx){
-        audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-        gain = audioCtx.createGain(); gain.gain.value = .28; gain.connect(audioCtx.destination);
-      }
-      if (audioCtx.state==='suspended'){ try{ await audioCtx.resume(); }catch{} }
-    }
-    function stopSoundOnCamera(){
-      melodyActive=false;
-      if (melodyTimer){ try{ clearTimeout(melodyTimer); }catch{} melodyTimer=null; }
-      try{ if (currentOsc){ currentOsc.onended=null; currentOsc.stop(0); } }catch{}
-      try{ if (currentOsc){ currentOsc.disconnect(); } }catch{}
-      currentOsc=null;
-      try{ if (currentSrc){ currentSrc.onended=null; currentSrc.stop(0); } }catch{}
-      try{ if (currentSrc){ currentSrc.disconnect(); } }catch{}
-      currentSrc=null;
-    }
-    async function playSoundOnCamera(kind){
-      await ensureAudio(); stopSoundOnCamera();
-      if (kind==='whitenoise') return playWhiteNoise();
-      if (kind==='rain') return playRain();
-      if (kind==='lullaby1') return playMelody([261.63,261.63,392.00,392.00,440.00,440.00,392.00,349.23,349.23,329.63,329.63,293.66,293.66,261.63], .52, 620);
-      if (kind==='lullaby2') return playMelody([329.63,293.66,293.66,329.63,293.66,261.63,293.66,329.63,329.63,293.66], .52, 620);
-    }
-    function playMelody(notes, noteDur=.5, gapMs=620){
-      melodyActive=true; let i=0;
-      const step=()=>{ if (!melodyActive) return;
-        const osc=audioCtx.createOscillator();
-        osc.type='sine'; osc.frequency.value=notes[i];
-        osc.connect(gain); currentOsc=osc;
-        const stopAt=audioCtx.currentTime + noteDur;
-        osc.start(); osc.stop(stopAt);
-        osc.onended=()=>{ if (!melodyActive) return; i=(i+1)%notes.length; melodyTimer=setTimeout(step, gapMs); };
-      };
-      step();
-    }
-    function playWhiteNoise(){
-      const n=audioCtx.sampleRate*2;
-      const buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate);
-      const ch=buf.getChannelData(0);
-      for(let i=0;i<n;i++) ch[i]=Math.random()*2-1;
-      const src=audioCtx.createBufferSource();
-      src.buffer=buf; src.loop=true; src.connect(gain); src.start(0);
-      currentSrc=src;
-    }
-    function playRain(){
-      const n=audioCtx.sampleRate*2;
-      const buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate);
-      const ch=buf.getChannelData(0);
-      for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*0.5;
-      const lp=audioCtx.createBiquadFilter();
-      lp.type='lowpass'; lp.frequency.value=900;
-      const src=audioCtx.createBufferSource();
-      src.buffer=buf; src.loop=true; src.connect(lp); lp.connect(gain); src.start(0);
-      currentSrc=src;
-    }
+    async function ensureAudio(){ if (!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); gain = audioCtx.createGain(); gain.gain.value=.28; gain.connect(audioCtx.destination); } if (audioCtx.state==='suspended'){ try{ await audioCtx.resume(); }catch{} } }
+    function stopSoundOnCamera(){ melodyActive=false; if (melodyTimer){ try{ clearTimeout(melodyTimer); }catch{} melodyTimer=null; try{ if (currentOsc){ currentOsc.onended=null; currentOsc.stop(0); } }catch{} try{ if (currentOsc) currentOsc.disconnect(); }catch{} currentOsc=null; try{ if (currentSrc){ currentSrc.onended=null; currentSrc.stop(0); } }catch{} try{ if (currentSrc) currentSrc.disconnect(); }catch{} currentSrc=null; }
+    async function playSoundOnCamera(kind){ await ensureAudio(); stopSoundOnCamera(); if (kind==='whitenoise') return playWhiteNoise(); if (kind==='rain') return playRain(); if (kind==='lullaby1') return playMelody([261.63,261.63,392.00,392.00,440.00,440.00,392.00,349.23,349.23,329.63,329.63,293.66,293.66,261.63], .52, 620); if (kind==='lullaby2') return playMelody([329.63,293.66,293.66,329.63,293.66,261.63,293.66,329.63,329.63,293.66], .52, 620); }
+    function playMelody(notes, noteDur=.5, gapMs=620){ melodyActive=true; let i=0; const step=()=>{ if (!melodyActive) return; const osc=audioCtx.createOscillator(); osc.type='sine'; osc.frequency.value=notes[i]; osc.connect(gain); currentOsc=osc; const stopAt=audioCtx.currentTime+noteDur; osc.start(); osc.stop(stopAt); osc.onended=()=>{ if (!melodyActive) return; i=(i+1)%notes.length; melodyTimer=setTimeout(step, gapMs); }; }; step(); }
+    function playWhiteNoise(){ const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0); for(let i=0;i<n;i++) ch[i]=Math.random()*2-1; const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(gain); src.start(0); currentSrc=src; }
+    function playRain(){ const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0); for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*0.5; const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900; const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(lp); lp.connect(gain); src.start(0); currentSrc=src; }
 
-    // Initialize UI
-    configureTop();
+    // Init title/back
+    goto(P.home);
   </script>
 </body>
 </html>
