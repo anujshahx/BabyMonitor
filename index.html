@@ -65,12 +65,13 @@
     .next:active { transform: scale(.98); }
     .next:disabled { opacity:.45; cursor: not-allowed; }
     .hidden { display: none !important; }
+    .note { font-size: 12px; color: var(--muted); text-align: center; }
   </style>
 </head>
 <body>
   <div class="app">
     <div class="appbar">
-      <button id="backBtn" class="back" onclick="goBack()" aria-label="Back" title="Back">
+      <button id="backBtn" class="back" aria-label="Back" title="Back">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
       </button>
       <div class="brand">
@@ -91,9 +92,10 @@
           <div class="section"><span class="num">•</span>Choose what this device will do</div>
           <div class="stack">
             <div class="row" style="grid-template-columns: 1fr 1fr; gap: 12px;">
-              <button class="btn" onclick="chooseRole('camera')">📷 Use as Camera</button>
-              <button class="btn secondary" onclick="chooseRole('monitor')">📺 Use as Monitor</button>
+              <button id="btnCamera" class="btn">📷 Use as Camera</button>
+              <button id="btnMonitor" class="btn secondary">📺 Use as Monitor</button>
             </div>
+            <button id="btnResume" class="btn hidden">↩ Resume previous pairing</button>
             <div class="status info">No login needed; share a code once to connect securely peer‑to‑peer. </div>
             <div class="status info">Tip: Keep both phones on the same network for the fastest pairing. </div>
           </div>
@@ -104,14 +106,15 @@
           <div class="section"><span class="num">1</span>Start camera & generate offer</div>
           <div class="stack">
             <div id="camStatus" class="status info">Press Start to allow camera & mic. </div>
-            <div class="row"><button class="btn" onclick="startCamera()">▶ Start Camera</button></div>
+            <div class="row"><button class="btn" id="btnStartCam">▶ Start Camera</button></div>
             <div class="row">
               <textarea id="offerText" readonly placeholder="Offer will appear here after ICE gathering…"></textarea>
               <div class="row" style="grid-template-columns: auto 1fr; gap: 8px;">
-                <button class="btn copy" onclick="copyText('offerText')">📋 Copy Offer</button>
+                <button class="btn copy" id="btnCopyOffer">📋 Copy Offer</button>
                 <div class="status info" id="copyOfferMsg" style="display:none;">Copied. Send to Monitor. </div>
               </div>
             </div>
+            <div class="note" id="resumeNoteCam1" style="display:none;">Loaded last offer from this device; create a fresh offer for a new session. </div>
           </div>
         </section>
 
@@ -120,8 +123,9 @@
           <div class="section"><span class="num">2</span>Paste answer from Monitor & connect</div>
           <div class="stack">
             <textarea id="answerInput" placeholder="Paste answer JSON here…"></textarea>
-            <div class="row"><button class="btn secondary" onclick="connectCamera()">✓ Connect</button></div>
+            <div class="row"><button class="btn secondary" id="btnConnectCam">✓ Connect</button></div>
             <div id="camStatus2" class="status info" style="display:none;"></div>
+            <div class="note" id="resumeNoteCam2" style="display:none;">This answer was saved previously; a new answer is required for a fresh connection. </div>
           </div>
         </section>
 
@@ -140,8 +144,9 @@
           <div class="section"><span class="num">1</span>Paste offer from Camera</div>
           <div class="stack">
             <textarea id="offerInput" placeholder="Paste offer JSON here…"></textarea>
-            <div class="row"><button class="btn" onclick="createAnswer()">🔗 Create Answer</button></div>
+            <div class="row"><button class="btn" id="btnCreateAnswer">🔗 Create Answer</button></div>
             <div id="monStatus" class="status info" style="display:none;"></div>
+            <div class="note" id="resumeNoteMon1" style="display:none;">Loaded a previous offer; use a fresh offer from the Camera for a new session. </div>
           </div>
         </section>
 
@@ -152,7 +157,7 @@
             <div class="row">
               <textarea id="answerText" readonly placeholder="Answer will appear here…"></textarea>
               <div class="row" style="grid-template-columns: auto 1fr; gap: 8px;">
-                <button class="btn copy" onclick="copyText('answerText')">📋 Copy Answer</button>
+                <button class="btn copy" id="btnCopyAnswer">📋 Copy Answer</button>
                 <div class="status info" id="copyAnswerMsg" style="display:none;">Copied. Send to Camera. </div>
               </div>
             </div>
@@ -166,9 +171,7 @@
           <div class="stack">
             <div class="video">
               <video id="monitorVideo" autoplay playsinline muted></video>
-              <button id="micBtn" class="fab" title="Hold to Talk"
-                onpointerdown="startTalking()" onpointerup="stopTalking()"
-                ontouchstart="startTalking()" ontouchend="stopTalking()">🎤</button>
+              <button id="micBtn" class="fab" title="Hold to Talk">🎤</button>
             </div>
             <div class="controls">
               <div class="select">
@@ -180,8 +183,8 @@
                   <option value="rain">🌧️ Rain</option>
                 </select>
               </div>
-              <button class="pill" id="playBtn" onclick="playSelected()" disabled>▶ Play</button>
-              <button class="pill stop" id="stopBtn" onclick="sendStop()" disabled>⏹ Stop</button>
+              <button class="pill" id="playBtn" disabled>▶ Play</button>
+              <button class="pill stop" id="stopBtn" disabled>⏹ Stop</button>
             </div>
             <div id="soundHint" class="status info">Waiting for Camera handshake… </div>
           </div>
@@ -191,25 +194,44 @@
     </div>
 
     <div class="footer">
-      <button id="nextBtn" class="next" onclick="goNext()" disabled>Next</button>
+      <button id="nextBtn" class="next" disabled>Next</button>
     </div>
   </div>
 
   <script>
-    /* Wizard */
+    /* Wizard & UI state */
     const P = { home:'home', cam1:'cam1', cam2:'cam2', cam3:'cam3', mon1:'mon1', mon2:'mon2', mon3:'mon3' };
     let role = null, current = P.home, animLock = false;
-    const titleEl = document.getElementById('title'), backBtn = document.getElementById('backBtn'), nextBtn = document.getElementById('nextBtn');
+
+    const titleEl = document.getElementById('title');
+    const backBtn = document.getElementById('backBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
     function setTitle(t){ titleEl.textContent = t; }
     function setBack(v){ backBtn.style.visibility = v ? 'visible' : 'hidden'; }
     function setNext(v){ nextBtn.disabled = !v; }
-    function switchPanel(nextId, dir='forward'){
-      if (animLock) return; animLock = true;
+
+    function switchPanelImmediate(nextId){
       const card = document.getElementById('card');
-      const from = document.getElementById(current), to = document.getElementById(nextId);
       card.querySelectorAll('.panel').forEach(p => p.classList.remove('active','enter-right','leave-left','enter-left','leave-right'));
-      from.classList.add(dir==='forward' ? 'leave-left' : 'leave-right'); to.classList.add('active', dir==='forward' ? 'enter-right' : 'enter-left');
-      setTimeout(()=>{ current = nextId; animLock=false; }, 280);
+      const to = document.getElementById(nextId);
+      if (to) to.classList.add('active');
+      current = nextId;
+    }
+    function switchPanel(nextId, dir='forward'){
+      try{
+        if (animLock) return;
+        animLock = true;
+        const card = document.getElementById('card');
+        const from = document.getElementById(current), to = document.getElementById(nextId);
+        if (!from || !to){ animLock=false; return switchPanelImmediate(nextId); }
+        card.querySelectorAll('.panel').forEach(p => p.classList.remove('active','enter-right','leave-left','enter-left','leave-right'));
+        from.classList.add(dir==='forward' ? 'leave-left' : 'leave-right');
+        to.classList.add('active', dir==='forward' ? 'enter-right' : 'enter-left');
+        setTimeout(()=>{ current = nextId; animLock=false; }, 280);
+      } catch {
+        animLock=false; switchPanelImmediate(nextId);
+      }
     }
     function goto(id, dir='forward'){ switchPanel(id, dir); configureTop(); }
     function configureTop(){
@@ -225,34 +247,78 @@
         if (current===P.mon3){ setTitle('Monitor • Live'); nextBtn.classList.add('hidden'); } else nextBtn.classList.remove('hidden');
       }
     }
-    function chooseRole(r){ role = r; if (role==='camera'){ goto(P.cam1); } else { goto(P.mon1); } }
     function goBack(){
       if (current===P.home) return;
-      if (role==='camera'){ if (current===P.cam3) return goto(P.cam2,'back'); if (current===P.cam2) return goto(P.cam1,'back'); if (current===P.cam1) return goto(P.home,'back'); }
-      else { if (current===P.mon3) return goto(P.mon2,'back'); if (current===P.mon2) return goto(P.mon1,'back'); if (current===P.mon1) return goto(P.home,'back'); }
+      if (role==='camera'){
+        if (current===P.cam3) return goto(P.cam2,'back');
+        if (current===P.cam2) return goto(P.cam1,'back');
+        if (current===P.cam1) return goto(P.home,'back');
+      } else {
+        if (current===P.mon3) return goto(P.mon2,'back');
+        if (current===P.mon2) return goto(P.mon1,'back');
+        if (current===P.mon1) return goto(P.home,'back');
+      }
     }
     function goNext(){
-      if (role==='camera'){ if (current===P.cam1) return goto(P.cam2); if (current===P.cam2) return goto(P.cam3); }
-      else { if (current===P.mon1) return goto(P.mon2); if (current===P.mon2) return goto(P.mon3); }
+      if (role==='camera'){
+        if (current===P.cam1) return goto(P.cam2);
+        if (current===P.cam2) return goto(P.cam3);
+      } else {
+        if (current===P.mon1) return goto(P.mon2);
+        if (current===P.mon2) return goto(P.mon3);
+      }
     }
-    function showCopied(msgId){ const el=document.getElementById(msgId); el.style.display='block'; setTimeout(()=> el.style.display='none', 1400); }
 
     /* Clipboard with fallback */
     async function copyText(textareaId){
       const el = document.getElementById(textareaId), txt = el.value || '';
-      try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(txt); } else { el.select(); document.execCommand('copy'); } showCopied(textareaId==='offerText'?'copyOfferMsg':'copyAnswerMsg'); }
-      catch(e){ alert('Copy failed: ' + e.message); }
+      try {
+        if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(txt); }
+        else { el.select(); document.execCommand('copy'); }
+        if (textareaId==='offerText'){ document.getElementById('copyOfferMsg').style.display='block'; setTimeout(()=>document.getElementById('copyOfferMsg').style.display='none',1400); }
+        if (textareaId==='answerText'){ document.getElementById('copyAnswerMsg').style.display='block'; setTimeout(()=>document.getElementById('copyAnswerMsg').style.display='none',1400); }
+      } catch(e){ alert('Copy failed: ' + e.message); }
     }
 
-    /* Storage helpers */
+    /* Storage helpers (localStorage for payload, cookie as tiny hint) */
     function saveLocal(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch{} }
     function loadLocal(key){ try{ return JSON.parse(localStorage.getItem(key)||'null'); }catch{ return null; } }
     function setCookie(name, value, days=3){
       try{
-        if ((value||'').length > 3800) return;
+        if ((value||'').length > 3800) return; // keep cookie small
         const exp = new Date(Date.now()+days*864e5).toUTCString();
         document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; expires=${exp}; path=/; SameSite=Lax`;
       }catch{}
+    }
+
+    /* Resume support */
+    function updateResumeVisibility(){
+      const hasRole = !!localStorage.getItem('lastRole');
+      const btn = document.getElementById('btnResume');
+      btn.classList.toggle('hidden', !hasRole);
+    }
+    function resumePrevious(){
+      const lastRole = localStorage.getItem('lastRole');
+      const lastOffer = loadLocal('lastOffer');
+      const lastAnswer = loadLocal('lastAnswer');
+
+      if (lastRole === 'camera'){
+        role = 'camera';
+        goto(P.cam1);
+        // Prefill offer if present (for reference only)
+        if (lastOffer){ document.getElementById('offerText').value = JSON.stringify(lastOffer); document.getElementById('resumeNoteCam1').style.display='block'; }
+        // Jump to connect step and prefill last answer (for reference only)
+        goto(P.cam2);
+        if (lastAnswer){ document.getElementById('answerInput').value = JSON.stringify(lastAnswer); document.getElementById('resumeNoteCam2').style.display='block'; }
+      } else if (lastRole === 'monitor'){
+        role = 'monitor';
+        goto(P.mon1);
+        if (lastOffer){ document.getElementById('offerInput').value = JSON.stringify(lastOffer); document.getElementById('resumeNoteMon1').style.display='block'; }
+        // Jump to copy answer step and prefill saved answer
+        goto(P.mon2);
+        if (lastAnswer){ document.getElementById('answerText').value = JSON.stringify(lastAnswer); }
+        setNext(true);
+      }
     }
 
     /* WebRTC */
@@ -263,15 +329,15 @@
     function okmsg(id,m){ const el=document.getElementById(id); el.className='status ok'; el.style.display='block'; el.textContent=m; }
     function errmsg(id,m){ const el=document.getElementById(id); el.className='status err'; el.style.display='block'; el.textContent=m; }
 
-    /* CAMERA */
     async function startCamera(){
       try{
         info('camStatus','Requesting camera & mic…');
         localStream = await navigator.mediaDevices.getUserMedia({ video:{facingMode:'environment', width:{ideal:1920}, height:{ideal:1080}}, audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true} });
         document.getElementById('cameraVideo').srcObject = localStream;
+
         pc = new RTCPeerConnection(rtcConfig);
 
-        // Auto-advance on connection state (reliable)
+        // Auto-advance on connection
         pc.onconnectionstatechange = () => { if (pc.connectionState === 'connected' && current!==P.cam3) goto(P.cam3); };
 
         dataChannel = pc.createDataChannel('ctrl');
@@ -279,14 +345,15 @@
 
         localStream.getTracks().forEach(tr => pc.addTrack(tr, localStream));
 
-        // Offer + ICE
         const gathered=[]; pc.onicecandidate = ev => { if (ev.candidate) gathered.push(ev.candidate); };
         pc.onicegatheringstatechange = ()=>{
           if (pc.iceGatheringState==='complete'){
             const offerPkg = { sdp: pc.localDescription, candidates: gathered };
             const txt = JSON.stringify(offerPkg);
             document.getElementById('offerText').value = txt;
-            saveLocal('lastOffer', offerPkg); setCookie('hasOffer','1');
+            saveLocal('lastOffer', offerPkg);
+            localStorage.setItem('lastRole','camera');
+            setCookie('hasOffer','1');
             okmsg('camStatus','Offer ready. Copy and send to Monitor. ');
             setNext(true);
           }
@@ -304,28 +371,31 @@
         if (answer.candidates) for (const c of answer.candidates) await pc.addIceCandidate(c);
         okmsg('camStatus2','Connected. Monitor can control sounds. ');
         saveLocal('lastAnswer', answer);
-        // Auto-advance immediately on successful connect
+        localStorage.setItem('lastRole','camera');
         if (current!==P.cam3) goto(P.cam3);
       }catch(e){ errmsg('camStatus2','Error: '+e.message); }
     }
 
-    /* MONITOR */
     async function createAnswer(){
       try{
         const raw = document.getElementById('offerInput').value.trim();
         if (!raw) { errmsg('monStatus','Paste the offer first.'); return; }
         info('monStatus','Creating connection…');
         const offer = JSON.parse(raw);
+
         pc = new RTCPeerConnection(rtcConfig);
 
-        // Advance to final when DC opens or 'ready' arrives
         pc.ondatachannel = ev => {
           dataChannel = ev.channel;
           dataChannel.onopen = () => { startPinging(); if (current!==P.mon3) goto(P.mon3); };
-          dataChannel.onmessage = e => { try{ const msg=JSON.parse(e.data); if (msg.action==='ready'){ enableSoundControls(); okmsg('monStatus','Handshake complete. Sounds ready. '); if (current!==P.mon3) goto(P.mon3); } }catch{} };
+          dataChannel.onmessage = e => {
+            try{
+              const msg=JSON.parse(e.data);
+              if (msg.action==='ready'){ enableSoundControls(); okmsg('monStatus','Handshake complete. Sounds ready. '); if (current!==P.mon3) goto(P.mon3); }
+            }catch{}
+          };
         };
 
-        // Fallback advance on connection state
         pc.onconnectionstatechange = () => {
           if (pc.connectionState === 'connected' && dataChannel?.readyState === 'open'){
             enableSoundControls(); okmsg('monStatus','Connected. Sounds enabled. '); if (current!==P.mon3) goto(P.mon3); stopPinging();
@@ -334,7 +404,6 @@
 
         pc.ontrack = e => { if (e.track.kind==='video'){ document.getElementById('monitorVideo').srcObject = e.streams[0]; document.getElementById('micBtn').style.display='flex'; } };
 
-        // Add monitor mic (muted)
         try{
           monitorMicStream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true }});
           monitorMicTrack = monitorMicStream.getAudioTracks()[0]; monitorMicTrack.enabled=false; pc.addTrack(monitorMicTrack, monitorMicStream);
@@ -346,7 +415,9 @@
             const answerPkg = { sdp: pc.localDescription, candidates: gathered };
             const txt = JSON.stringify(answerPkg);
             document.getElementById('answerText').value = txt;
-            saveLocal('lastAnswer', answerPkg); setCookie('hasAnswer','1');
+            saveLocal('lastAnswer', answerPkg);
+            localStorage.setItem('lastRole','monitor');
+            setCookie('hasAnswer','1');
             okmsg('monStatus','Answer ready. Copy and send to Camera. ');
             setNext(true);
           }
@@ -376,8 +447,35 @@
     function playWhiteNoise(){ const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0); for(let i=0;i<n;i++) ch[i]=Math.random()*2-1; const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(gain); src.start(0); currentSrc=src; }
     function playRain(){ const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0); for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*0.5; const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900; const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(lp); lp.connect(gain); src.start(0); currentSrc=src; }
 
-    /* Init */
-    configureTop();
+    /* Bind events after DOM is ready: robust home buttons and controls */
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('btnCamera')?.addEventListener('click', () => { role='camera'; localStorage.setItem('lastRole','camera'); goto(P.cam1); });
+      document.getElementById('btnMonitor')?.addEventListener('click', () => { role='monitor'; localStorage.setItem('lastRole','monitor'); goto(P.mon1); });
+      document.getElementById('btnResume')?.addEventListener('click', resumePrevious);
+
+      document.getElementById('backBtn')?.addEventListener('click', goBack);
+      document.getElementById('nextBtn')?.addEventListener('click', goNext);
+
+      document.getElementById('btnStartCam')?.addEventListener('click', startCamera);
+      document.getElementById('btnCopyOffer')?.addEventListener('click', () => copyText('offerText'));
+      document.getElementById('btnConnectCam')?.addEventListener('click', connectCamera);
+
+      document.getElementById('btnCreateAnswer')?.addEventListener('click', createAnswer);
+      document.getElementById('btnCopyAnswer')?.addEventListener('click', () => copyText('answerText'));
+
+      document.getElementById('micBtn')?.addEventListener('pointerdown', startTalking);
+      document.getElementById('micBtn')?.addEventListener('pointerup', stopTalking);
+      document.getElementById('micBtn')?.addEventListener('touchstart', startTalking);
+      document.getElementById('micBtn')?.addEventListener('touchend', stopTalking);
+
+      document.getElementById('playBtn')?.addEventListener('click', playSelected);
+      document.getElementById('stopBtn')?.addEventListener('click', sendStop);
+
+      updateResumeVisibility();
+    });
+
+    // Initialize top bar
+    (function init(){ /* no-op; configureTop is called on first goto */ })();
   </script>
 </body>
 </html>
