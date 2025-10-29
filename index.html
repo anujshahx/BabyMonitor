@@ -478,4 +478,239 @@
       try{
         info('camStatus','Requesting camera & mic…');
         localStream = await navigator.mediaDevices.getUserMedia({
-          video
+          video: { facingMode:'environment', width:{ideal:1920}, height:{ideal:1080} },
+          audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }
+        });
+
+        pc = new RTCPeerConnection(rtcConfig);
+
+        // Auto-advance when the connection is up
+        pc.onconnectionstatechange = ()=>{
+          if (pc.connectionState === 'connected' && current !== P.cam3) goto(P.cam3);
+        }; /* Advance on connection to avoid stalling the flow. [web:314][web:312] */
+
+        dataChannel = pc.createDataChannel('ctrl');
+        dataChannel.onmessage = (ev)=>{
+          try{
+            const msg = JSON.parse(ev.data);
+            if (msg.action==='play') playSoundOnCamera(msg.sound);
+            if (msg.action==='stop') stopSoundOnCamera();
+            if (msg.action==='ping') dataChannel.send(JSON.stringify({action:'ready'}));
+          }catch{}
+        };
+
+        localStream.getTracks().forEach(tr => pc.addTrack(tr, localStream));
+
+        // Show remote talk-back audio on camera
+        pc.ontrack = (e)=>{
+          if (e.track.kind==='audio' && e.streams[0]){
+            const ra = new Audio();
+            ra.srcObject = e.streams[0];
+            ra.play().catch(()=>{});
+          }
+        };
+
+        const gathered=[];
+        pc.onicecandidate = ev => { if (ev.candidate) gathered.push(ev.candidate); };
+        pc.onicegatheringstatechange = ()=>{
+          if (pc.iceGatheringState==='complete'){
+            const offerPkg = { sdp: pc.localDescription, candidates: gathered };
+            document.getElementById('offerText').value = JSON.stringify(offerPkg);
+            saveLocal('lastOffer', offerPkg);
+            okmsg('camStatus','Offer ready. Copy and send to Monitor. ');
+          }
+        };
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+      }catch(e){ errmsg('camStatus','Error: '+e.message); }
+    }
+
+    async function connectCamera(){
+      try{
+        const raw = document.getElementById('answerInput').value.trim();
+        if (!raw) { errmsg('camStatus2','Paste the answer first.'); return; }
+        const answer = JSON.parse(raw);
+        await pc.setRemoteDescription(answer.sdp);
+        if (answer.candidates) for (const c of answer.candidates) await pc.addIceCandidate(c);
+        okmsg('camStatus2','Connected. Monitor can control sounds. ');
+        saveLocal('lastAnswer', answer);
+        // Ensure the wizard advances immediately after successful connect
+        if (current !== P.cam3) goto(P.cam3);
+      }catch(e){ errmsg('camStatus2','Error: '+e.message); }
+    }
+
+    /* MONITOR FLOW */
+    async function createAnswer(){
+      try{
+        const raw = document.getElementById('offerInput').value.trim();
+        if (!raw) { errmsg('monStatus','Paste the offer first.'); return; }
+        info('monStatus','Creating connection…');
+
+        const offer = JSON.parse(raw);
+        pc = new RTCPeerConnection(rtcConfig);
+
+        // DataChannel from camera
+        pc.ondatachannel = ev => {
+          dataChannel = ev.channel;
+          dataChannel.onopen = () => {
+            startPinging();
+            // Advance to live view as soon as control is ready
+            if (current !== P.mon3) goto(P.mon3);
+          }; /* DC open => control available; proceed to live. [web:317] */
+          dataChannel.onmessage = e => {
+            try{
+              const msg = JSON.parse(e.data);
+              if (msg.action==='ready'){
+                enableSoundControls();
+                okmsg('monStatus','Handshake complete. Sounds ready. ');
+                if (current !== P.mon3) goto(P.mon3);
+              }
+            }catch{}
+          };
+        };
+
+        // Fallback: when peer connection is fully connected and DC is open
+        pc.onconnectionstatechange = ()=>{
+          if (pc.connectionState === 'connected' && dataChannel && dataChannel.readyState === 'open'){
+            enableSoundControls();
+            okmsg('monStatus','Connected. Sounds enabled. ');
+            if (current !== P.mon3) goto(P.mon3);
+            stopPinging();
+          }
+        }; /* Use connection state to guarantee progress on all browsers. [web:312][web:314] */
+
+        // Show camera video on monitor
+        pc.ontrack = e => {
+          if (e.track.kind==='video'){
+            document.getElementById('monitorVideo').srcObject = e.streams[0];
+            document.getElementById('micBtn').style.display='flex';
+          }
+        };
+
+        // Add monitor mic (muted by default)
+        try{
+          monitorMicStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }});
+          monitorMicTrack = monitorMicStream.getAudioTracks()[0];
+          monitorMicTrack.enabled = false;
+          pc.addTrack(monitorMicTrack, monitorMicStream);
+        }catch{}
+
+        const gathered=[];
+        pc.onicecandidate = ev => { if (ev.candidate) gathered.push(ev.candidate); };
+        pc.onicegatheringstatechange = ()=>{
+          if (pc.iceGatheringState==='complete'){
+            const answerPkg = { sdp: pc.localDescription, candidates: gathered };
+            document.getElementById('answerText').value = JSON.stringify(answerPkg);
+            saveLocal('lastAnswer', answerPkg);
+            okmsg('monStatus','Answer ready. Copy and send to Camera. ');
+            // Keep Next enabled here as a manual fallback
+            setNext(true);
+          }
+        };
+
+        await pc.setRemoteDescription(offer.sdp);
+        if (offer.candidates) for (const c of offer.candidates) await pc.addIceCandidate(c);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+      }catch(e){ errmsg('monStatus','Error: '+e.message); }
+    }
+
+    // Handshake ping loop (monitor -> camera)
+    function startPinging(){
+      stopPinging();
+      const hint = document.getElementById('soundHint'); let dots=0;
+      pingTimer = setInterval(()=>{
+        if (!dataChannel || dataChannel.readyState!=='open') return;
+        try{ dataChannel.send(JSON.stringify({action:'ping'})); }catch{}
+        dots=(dots+1)%4; hint.textContent = 'Waiting for Camera handshake' + '.'.repeat(dots);
+      }, 800);
+    }
+    function stopPinging(){ if (pingTimer){ clearInterval(pingTimer); pingTimer=null; } }
+
+    function enableSoundControls(){
+      document.getElementById('soundSelect').disabled=false;
+      document.getElementById('playBtn').disabled=false;
+      document.getElementById('stopBtn').disabled=false;
+      document.getElementById('soundHint').textContent = '🎵 Sounds ready';
+      stopPinging();
+    }
+
+    function playSelected(){
+      const sel = document.getElementById('soundSelect');
+      const val = sel.value;
+      if (!val) return;
+      if (!dataChannel || dataChannel.readyState!=='open') return;
+      try{ dataChannel.send(JSON.stringify({action:'play', sound: val})); }catch{}
+    }
+    function sendStop(){
+      if (dataChannel && dataChannel.readyState==='open'){
+        try{ dataChannel.send(JSON.stringify({action:'stop'})); }catch{}
+      }
+    }
+
+    function startTalking(){
+      const b = document.getElementById('micBtn');
+      b.classList.add('active'); b.textContent='🔴';
+      if (monitorMicTrack) monitorMicTrack.enabled = true;
+    }
+    function stopTalking(){
+      const b = document.getElementById('micBtn');
+      b.classList.remove('active'); b.textContent='🎤';
+      if (monitorMicTrack) monitorMicTrack.enabled = false;
+    }
+
+    /* CAMERA audio engine: exclusive playback */
+    let audioCtx=null, gain=null, currentOsc=null, currentSrc=null, melodyTimer=null, melodyActive=false;
+
+    async function ensureAudio(){
+      if (!audioCtx){
+        audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+        gain = audioCtx.createGain(); gain.gain.value = .28; gain.connect(audioCtx.destination);
+      }
+      if (audioCtx.state==='suspended'){ try{ await audioCtx.resume(); }catch{} }
+    }
+
+    function stopSoundOnCamera(){
+      melodyActive=false; if (melodyTimer){ try{ clearTimeout(melodyTimer); }catch{} melodyTimer=null;
+      try{ if (currentOsc){ currentOsc.onended=null; currentOsc.stop(0); } }catch{} try{ if (currentOsc) currentOsc.disconnect(); }catch{} currentOsc=null;
+      try{ if (currentSrc){ currentSrc.onended=null; currentSrc.stop(0); } }catch{} try{ if (currentSrc) currentSrc.disconnect(); }catch{} currentSrc=null;
+    }
+
+    async function playSoundOnCamera(kind){
+      await ensureAudio(); stopSoundOnCamera();
+      if (kind==='whitenoise') return playWhiteNoise();
+      if (kind==='rain') return playRain();
+      if (kind==='lullaby1') return playMelody([261.63,261.63,392.00,392.00,440.00,440.00,392.00,349.23,349.23,329.63,329.63,293.66,293.66,261.63], .52, 620);
+      if (kind==='lullaby2') return playMelody([329.63,293.66,293.66,329.63,293.66,261.63,293.66,329.63,329.63,293.66], .52, 620);
+    }
+
+    function playMelody(notes, noteDur=.5, gapMs=620){
+      melodyActive=true; let i=0;
+      const step=()=>{ if (!melodyActive) return;
+        const osc=audioCtx.createOscillator(); osc.type='sine'; osc.frequency.value=notes[i]; osc.connect(gain); currentOsc=osc;
+        const stopAt=audioCtx.currentTime + noteDur; osc.start(); osc.stop(stopAt);
+        osc.onended=()=>{ if (!melodyActive) return; i=(i+1)%notes.length; melodyTimer=setTimeout(step, gapMs); };
+      }; step();
+    }
+
+    function playWhiteNoise(){
+      const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0);
+      for(let i=0;i<n;i++) ch[i]=Math.random()*2-1;
+      const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(gain); src.start(0); currentSrc=src;
+    }
+
+    function playRain(){
+      const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0);
+      for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*0.5;
+      const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900;
+      const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(lp); lp.connect(gain); src.start(0); currentSrc=src;
+    }
+
+    // Init
+    configureTop();
+  </script>
+</body>
+</html>
