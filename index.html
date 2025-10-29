@@ -2,122 +2,88 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta
-    name="viewport"
-    content="user-scalable=no, width=device-width, initial-scale=1.0, viewport-fit=cover"
-  />
+  <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Baby Monitor</title>
   <style>
-    /* App chrome: no scroll, fixed full-viewport layout */
+    /* Global reset to prevent horizontal drift and scrolling */
+    * { box-sizing: border-box; }
     html, body {
       height: 100%;
       width: 100%;
-      overflow: hidden; /* no scroll anywhere */
-      background: #0f1025;
       margin: 0;
+      overflow: hidden;         /* no page scroll */
+      overscroll-behavior: none;
+      background: #0f1025;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       color: #111827;
     }
-
     :root{
-      --brand1: #667eea;
-      --brand2: #764ba2;
-      --accent1:#11998e;
-      --accent2:#38ef7d;
-      --bg-card:#ffffff;
-      --text:#1f2937;
-      --text-muted:#4b5563;
-      --danger1:#ff6b6b;
-      --danger2:#ee5a6f;
-
-      --bar-h: 56px;     /* top app bar (phone-friendly) */
-      --nav-h: 64px;     /* bottom nav (Next) base height */
+      --brand1:#667eea; --brand2:#764ba2;
+      --accent1:#11998e; --accent2:#38ef7d;
+      --bg-card:#ffffff; --text:#1f2937; --muted:#4b5563;
+      --danger1:#ff6b6b; --danger2:#ee5a6f;
+      --bar-h:56px;     /* top app bar */
+      --nav-h:64px;     /* bottom footer height */
+      --page-pad:12px;
     }
 
-    /* App uses a 3-row grid so Bottom Nav is always visible */
+    /* App frame: top bar + scroll-free content (we use internal scroll if needed) */
     .app {
-      height: 100dvh; /* dynamic viewport to avoid toolbar jump */
+      height: 100dvh;                            /* dynamic viewport height */
       width: 100%;
       display: grid;
-      grid-template-rows: var(--bar-h) 1fr var(--nav-h);
-      background: linear-gradient(135deg, var(--brand1) 0%, var(--brand2) 100%);
+      grid-template-rows: var(--bar-h) 1fr;      /* footer is fixed */
+      background: linear-gradient(135deg, var(--brand1), var(--brand2));
+      overflow-x: hidden;                        /* prevent horizontal shift */
     }
 
-    /* Top app bar */
+    /* Top bar */
     .appbar {
       height: var(--bar-h);
-      min-height: var(--bar-h);
-      display: flex;
-      align-items: center;
-      padding: 0 12px;
-      color: #fff;
-      background: transparent;
+      display: flex; align-items: center;
+      padding: 0 var(--page-pad);
+      color: #fff; background: transparent;
     }
-    .appbar .back {
-      width: 40px;
-      height: 40px;
-      border: 0;
-      border-radius: 10px;
-      background: rgba(255,255,255,0.15);
-      color: #fff;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      margin-right: 8px;
-      visibility: hidden; /* toggled by JS */
+    .back {
+      width: 40px; height: 40px; margin-right: 8px;
+      border: 0; border-radius: 10px;
+      background: rgba(255,255,255,0.15); color: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer; visibility: hidden;       /* toggled in JS */
     }
-    .appbar .logo {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      color: #fff;
-      font-weight: 800;
-      letter-spacing: 0.3px;
-      font-size: 16px;
+    .logo {
+      display: inline-flex; align-items: center; gap: 10px;
+      color: #fff; font-weight: 800; font-size: 16px;
     }
-    .appbar .logo svg {
-      width: 22px;
-      height: 22px;
-      display: block;
-    }
-    .appbar .title {
-      margin-left: 12px;
-      color: #e5e7eb;
-      font-weight: 600;
-      font-size: 14px;
-      opacity: 0.9;
-    }
+    .logo svg { width: 22px; height: 22px; display: block; }
+    .title { margin-left: 12px; color: #e5e7eb; font-weight: 600; font-size: 14px; opacity: .9; }
 
-    /* Content area is the middle grid row, fully contained */
+    /* Content region with bottom padding to account for fixed footer */
     .content-wrap {
-      width: 100%;
+      position: relative;
+      padding: var(--page-pad);
+      padding-bottom: calc(var(--nav-h) + var(--page-pad));   /* reserve space for fixed Next */
       height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 12px;
-      overflow: hidden; /* no page scroll */
+      width: 100%;
+      overflow: hidden;
     }
 
+    /* Centered card that never overflows width */
     .card {
       width: 100%;
       max-width: 720px;
       height: 100%;
+      margin: 0 auto;                     /* centers the frame */
       background: var(--bg-card);
       border-radius: 20px;
       box-shadow: 0 18px 50px rgba(0,0,0,0.25);
-      display: flex;
-      flex-direction: column;
+      display: flex; flex-direction: column;
       overflow: hidden;
     }
-
     .card-inner {
-      flex: 1 1 auto;
-      height: 100%;
-      padding: 16px;
-      display: grid;
-      grid-template-rows: 1fr;
+      flex: 1 1 auto; height: 100%; width: 100%;
+      padding: var(--page-pad);
+      display: grid; grid-template-rows: 1fr;
       gap: 12px;
       background:
         radial-gradient(1000px 500px at 100% -10%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 70%),
@@ -125,11 +91,7 @@
       overflow: hidden;
     }
 
-    .panel {
-      display: none;
-      height: 100%;
-      overflow: hidden;
-    }
+    .panel { display: none; height: 100%; overflow: hidden; }
     .panel.active { display: block; }
 
     .section {
@@ -139,203 +101,113 @@
       padding: 12px;
       color: var(--text);
       font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-height: 40px;
+      display: flex; align-items: center; gap: 10px; min-height: 40px;
       margin-bottom: 8px;
     }
     .section .num {
-      width: 26px;
-      height: 26px;
-      border-radius: 7px;
+      width: 26px; height: 26px; border-radius: 7px;
       background: linear-gradient(135deg, var(--brand1), var(--brand2));
-      color: #fff;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
+      color: #fff; font-size: 12px; font-weight: 900;
+      display: inline-flex; align-items: center; justify-content: center;
       box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-      font-weight: 900;
     }
 
-    .stage {
-      height: calc(100% - 48px);
-      display: grid;
-      grid-template-rows: 1fr;
-      overflow: hidden;
-    }
-
-    .stack {
-      height: 100%;
-      display: grid;
-      grid-template-rows: auto 1fr auto;
-      gap: 10px;
-      overflow: hidden;
-    }
+    .stage { height: calc(100% - 48px); display: grid; grid-template-rows: 1fr; overflow: hidden; }
+    .stack { height: 100%; display: grid; grid-template-rows: auto 1fr auto; gap: 10px; overflow: hidden; }
 
     .status {
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 12px;
-      text-align: center;
-      font-weight: 700;
-      font-size: 13px;
+      width: 100%; padding: 10px 12px; border-radius: 12px;
+      text-align: center; font-weight: 700; font-size: 13px;
     }
     .status.info { background: #eaf2fd; color: #174aa7; border: 1px solid #c8dbfb; }
     .status.ok   { background: #e8f7ee; color: #146c2e; border: 1px solid #bfe7cb; }
     .status.err  { background: #fde8ea; color: #821d2a; border: 1px solid #f3c2c8; }
 
     .btn {
-      width: 100%;
-      padding: 12px;
-      border: 0;
-      border-radius: 12px;
-      font-weight: 800;
-      font-size: 15px;
-      cursor: pointer;
-      box-shadow: 0 6px 16px rgba(0,0,0,0.12);
-      color: #fff;
+      width: 100%; padding: 12px;
+      border: 0; border-radius: 12px;
+      font-weight: 800; font-size: 15px; color: #fff;
+      cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,0.12);
       background: linear-gradient(135deg, var(--brand1), var(--brand2));
     }
     .btn.secondary { background: linear-gradient(135deg, var(--accent1), var(--accent2)); }
     .btn.copy      { background: linear-gradient(135deg, #f093fb, #f5576c); }
     .btn.danger    { background: linear-gradient(135deg, var(--danger1), var(--danger2)); }
-    .btn:disabled  { opacity: 0.5; cursor: not-allowed; }
+    .btn:disabled  { opacity: .5; cursor: not-allowed; }
 
     textarea {
-      width: 100%;
-      height: 28vh; /* increased a bit, still fits without overflow */
-      min-height: 120px;
-      resize: none;
-      border: 2px solid #e5e7eb;
-      border-radius: 12px;
-      background: #f8fafc;
-      padding: 10px;
+      width: 100%; height: 28vh; min-height: 120px;
+      resize: none; overflow: auto;
+      border: 2px solid #e5e7eb; border-radius: 12px;
+      background: #f8fafc; padding: 10px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      font-size: 12px;
-      color: #111827;
-      overflow: auto;
+      font-size: 12px; color: #111827;
     }
 
-    /* Video in fixed-height well so page never scrolls */
+    /* Video well */
     .video-wrap {
-      width: 100%;
-      height: 34vh;
-      min-height: 170px;
-      background: #000;
-      border-radius: 14px;
-      overflow: hidden;
-      position: relative;
-      box-shadow: 0 12px 28px rgba(0,0,0,0.20);
+      width: 100%; height: 34vh; min-height: 170px;
+      background: #000; border-radius: 14px; overflow: hidden;
+      position: relative; box-shadow: 0 12px 28px rgba(0,0,0,0.20);
     }
-    video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      background: #000;
-      display: block;
-    }
+    video { width: 100%; height: 100%; object-fit: cover; background: #000; display: block; }
 
+    /* Final screen controls */
     .fab {
-      position: absolute;
-      right: 12px;
-      bottom: 12px;
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      border: 0;
-      color: #fff;
+      position: absolute; right: 12px; bottom: 12px;
+      width: 56px; height: 56px; border-radius: 50%; border: 0; cursor: pointer;
+      color: #fff; font-size: 22px;
+      display: none; align-items: center; justify-content: center;
       background: linear-gradient(135deg, var(--danger1), var(--danger2));
-      display: none; /* shown on final monitor page */
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
       box-shadow: 0 12px 24px rgba(0,0,0,0.25);
-      cursor: pointer;
     }
     .fab.active { background: linear-gradient(135deg, #ee5a6f, #c92a2a); }
 
     .controls-row {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-      align-items: center;
+      display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
     }
     select {
-      width: 100%;
-      border: 2px solid #e5e7eb;
-      border-radius: 12px;
-      background: #ffffff;
-      padding: 10px;
-      font-weight: 700;
-      color: var(--text);
+      width: 100%; border: 2px solid #e5e7eb; border-radius: 12px; background: #fff; padding: 10px;
+      font-weight: 700; color: var(--text);
     }
     .stop-small {
-      padding: 10px 14px;
-      border-radius: 12px;
-      border: 0;
-      font-weight: 800;
-      color: #fff;
+      padding: 10px 14px; border-radius: 12px; border: 0; font-weight: 800; color: #fff;
       background: linear-gradient(135deg, var(--danger1), var(--danger2));
       box-shadow: 0 6px 16px rgba(0,0,0,0.12);
     }
+    .hint { text-align: center; color: var(--muted); font-size: 12px; }
 
-    /* Bottom navigation (Next) pinned in third grid row with safe-area padding */
-    .nav {
+    /* Fixed footer Next: always visible above safe area */
+    .footer {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
       height: var(--nav-h);
-      min-height: var(--nav-h);
       background: #ffffff;
-      border-top-left-radius: 16px;
-      border-top-right-radius: 16px;
+      border-top-left-radius: 16px; border-top-right-radius: 16px;
       box-shadow: 0 -10px 30px rgba(0,0,0,0.12);
-      padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) 12px;
-      display: grid;
-      grid-template-columns: 1fr;
-      align-items: center;
+      padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) 12px; /* safe area */
+      display: grid; grid-template-columns: 1fr; align-items: center;
+      z-index: 99;
     }
     .next {
-      width: 100%;
-      height: 100%;
-      border: 0;
-      border-radius: 12px;
+      width: 100%; height: 100%;
+      border: 0; border-radius: 12px; cursor: pointer;
       background: linear-gradient(135deg, var(--accent1), var(--accent2));
-      color: #fff;
-      font-weight: 900;
-      letter-spacing: .3px;
-      font-size: 16px;
-      cursor: pointer;
+      color: #fff; font-weight: 900; letter-spacing: .3px; font-size: 16px;
     }
     .next:disabled { opacity: .45; cursor: not-allowed; }
 
-    .hidden { display: none !important; }
-
-    .hint {
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 12px;
-    }
-
-    .choice-grid {
-      height: 100%;
-      display: grid;
-      grid-template-rows: 1fr 1fr;
-      gap: 12px;
-    }
+    /* Role choices */
+    .choice-grid { height: 100%; display: grid; grid-template-rows: 1fr 1fr; gap: 12px; }
     .role {
-      border: 0;
-      border-radius: 14px;
-      padding: 14px;
-      cursor: pointer;
-      color: #fff;
+      border: 0; border-radius: 14px; padding: 14px; cursor: pointer;
+      color: #fff; font-weight: 900; font-size: 16px;
       background: linear-gradient(135deg, var(--brand1), var(--brand2));
       box-shadow: 0 10px 24px rgba(0,0,0,0.18);
-      font-weight: 900;
-      font-size: 16px;
     }
-    .role.secondary {
-      background: linear-gradient(135deg, var(--accent1), var(--accent2));
-    }
+    .role.secondary { background: linear-gradient(135deg, var(--accent1), var(--accent2)); }
+
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -349,16 +221,8 @@
       </button>
       <div class="logo">
         <svg viewBox="0 0 64 64" aria-hidden="true">
-          <defs>
-            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#667eea"/>
-              <stop offset="100%" stop-color="#764ba2"/>
-            </linearGradient>
-          </defs>
-          <circle cx="32" cy="32" r="28" fill="url(#g)"/>
-          <rect x="18" y="22" width="28" height="20" rx="6" fill="#fff"/>
-          <circle cx="32" cy="32" r="6" fill="url(#g)"/>
-        </svg>
+          <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#667eea"/><stop offset="100%" stop-color="#764ba2"/></linearGradient></defs>
+        <circle cx="32" cy="32" r="28" fill="url(#g)"/><rect x="18" y="22" width="28" height="20" rx="6" fill="#fff"/><circle cx="32" cy="32" r="6" fill="url(#g)"/></svg>
         Baby Monitor
       </div>
       <div class="title" id="titleBar">Home</div>
@@ -383,7 +247,7 @@
             </div>
           </div>
 
-          <!-- Camera Step 1: Start & Offer -->
+          <!-- Camera: Start & Offer -->
           <div id="panelCamStart" class="panel">
             <div class="section"><span class="num">1</span>Start camera & generate offer</div>
             <div class="stage">
@@ -391,14 +255,14 @@
                 <div class="status info" id="cameraStatus">Press Start to allow camera & mic.</div>
                 <button class="btn" onclick="startCamera()">▶ Start Camera</button>
                 <div>
-                  <textarea id="offerText" readonly placeholder="Offer will appear here after gathering ICE…"></textarea>
+                  <textarea id="offerText" readonly placeholder="Offer will appear here after ICE gathering…"></textarea>
                   <button class="btn copy" onclick="copyOffer()">📋 Copy Offer</button>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Camera Step 2: Paste Answer -->
+          <!-- Camera: Connect -->
           <div id="panelCamConnect" class="panel">
             <div class="section"><span class="num">2</span>Paste answer from Monitor & connect</div>
             <div class="stage">
@@ -410,7 +274,7 @@
             </div>
           </div>
 
-          <!-- Monitor Step 1: Paste Offer -->
+          <!-- Monitor: Paste Offer -->
           <div id="panelMonOffer" class="panel">
             <div class="section"><span class="num">1</span>Paste offer from Camera</div>
             <div class="stage">
@@ -422,7 +286,7 @@
             </div>
           </div>
 
-          <!-- Monitor Step 2: Copy Answer -->
+          <!-- Monitor: Copy Answer -->
           <div id="panelMonAnswer" class="panel">
             <div class="section"><span class="num">2</span>Copy answer & send back to Camera</div>
             <div class="stage">
@@ -436,7 +300,7 @@
             </div>
           </div>
 
-          <!-- Monitor Final: Live -->
+          <!-- Monitor: Final Live -->
           <div id="panelMonFinal" class="panel">
             <div class="section"><span class="num">✓</span>Monitor live</div>
             <div class="stage">
@@ -444,8 +308,8 @@
                 <div class="video-wrap">
                   <video id="monitorVideo" autoplay playsinline muted></video>
                   <button id="micBtn" class="fab" title="Hold to Talk"
-                          onpointerdown="startTalking()" onpointerup="stopTalking()"
-                          ontouchstart="startTalking()" ontouchend="stopTalking()">🎤</button>
+                    onpointerdown="startTalking()" onpointerup="stopTalking()"
+                    ontouchstart="startTalking()" ontouchend="stopTalking()">🎤</button>
                 </div>
                 <div class="controls-row">
                   <select id="soundSelect" onchange="onSoundChange()" disabled>
@@ -462,13 +326,11 @@
             </div>
           </div>
 
-          <!-- Local Preview (camera pages only) -->
+          <!-- Local Preview (camera only) -->
           <div id="localPreview" class="panel">
             <div class="section"><span class="num">•</span>Local preview</div>
             <div class="stage">
-              <div class="video-wrap">
-                <video id="cameraVideo" autoplay muted playsinline></video>
-              </div>
+              <div class="video-wrap"><video id="cameraVideo" autoplay muted playsinline></video></div>
             </div>
           </div>
 
@@ -476,8 +338,8 @@
       </div>
     </div>
 
-    <!-- Bottom Next -->
-    <div class="nav">
+    <!-- Fixed Footer (Next) -->
+    <div class="footer">
       <button id="nextBtn" class="next" onclick="goNext()" disabled>Next</button>
     </div>
   </div>
@@ -485,241 +347,179 @@
   <script>
     /* Wizard state */
     const PAGES = {
-      home: 'panelHome',
-      camStart: 'panelCamStart',
-      camConnect: 'panelCamConnect',
-      monOffer: 'panelMonOffer',
-      monAnswer: 'panelMonAnswer',
-      monFinal: 'panelMonFinal',
-      localPreview: 'localPreview',
+      home:'panelHome', camStart:'panelCamStart', camConnect:'panelCamConnect',
+      monOffer:'panelMonOffer', monAnswer:'panelMonAnswer', monFinal:'panelMonFinal',
+      localPreview:'localPreview',
     };
-    let role = null;
-    let current = PAGES.home;
+    let role = null, current = PAGES.home;
 
     /* WebRTC state */
-    const rtcConfig = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
-    };
-    let pc = null;
-    let localStream = null;
-    let cameraAudioTrack = null;
-    let monitorMicStream = null;
-    let monitorMicTrack = null;
-    let dataChannel = null;
-
-    /* Pinging */
-    let pingTimer = null;
+    const rtcConfig = { iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}] };
+    let pc=null, localStream=null, cameraAudioTrack=null, monitorMicStream=null, monitorMicTrack=null, dataChannel=null;
+    let pingTimer=null;
 
     /* Audio engine (camera) */
-    let audioCtx = null;
-    let gain = null;
-    let currentOsc = null;
-    let currentSrc = null;
-    let melodyTimer = null;
-    let melodyActive = false;
+    let audioCtx=null, gain=null, currentOsc=null, currentSrc=null, melodyTimer=null, melodyActive=false;
 
-    /* UI helpers */
-    const $ = sel => document.querySelector(sel);
+    const $ = s => document.querySelector(s);
     const show = id => document.getElementById(id).classList.add('active');
     const hide = id => document.getElementById(id).classList.remove('active');
-    function setTitle(txt){ document.getElementById('titleBar').textContent = txt; }
-    function setBackVisible(v){ document.getElementById('backBtn').style.visibility = v ? 'visible':'hidden'; }
-    function setNextEnabled(v){ document.getElementById('nextBtn').disabled = !v; }
-    function setNextVisible(v){ document.getElementById('nextBtn').classList.toggle('hidden', !v); }
+    const setTitle = t => document.getElementById('titleBar').textContent = t;
+    const setBackVisible = v => document.getElementById('backBtn').style.visibility = v ? 'visible' : 'hidden';
+    const setNextEnabled = v => document.getElementById('nextBtn').disabled = !v;
+    const setNextVisible = v => document.getElementById('nextBtn').classList.toggle('hidden', !v);
 
     function goto(page){
       Object.values(PAGES).forEach(id => hide(id));
-      show(page);
-      current = page;
+      show(page); current = page;
 
-      if (page === PAGES.home){
-        setTitle('Home');
-        setBackVisible(false);
-        setNextVisible(true);
-        setNextEnabled(false);
-      } else {
-        setBackVisible(true);
-        setNextVisible(true);
-        setNextEnabled(false);
-      }
+      if (page === PAGES.home){ setTitle('Home'); setBackVisible(false); setNextVisible(true); setNextEnabled(false); }
+      else { setBackVisible(true); setNextVisible(true); setNextEnabled(false); }
 
       if (page === PAGES.camStart) setTitle('Camera • Generate Offer');
       if (page === PAGES.camConnect) setTitle('Camera • Connect');
       if (page === PAGES.monOffer) setTitle('Monitor • Paste Offer');
-      if (page === PAGES.monAnswer) {
-        setTitle('Monitor • Copy Answer');
-        setNextEnabled(true); // ALWAYS allow Next here (requested behavior)
-      }
-      if (page === PAGES.monFinal){
-        setTitle('Monitor • Live');
-        setNextVisible(false);
-      }
+      if (page === PAGES.monAnswer){ setTitle('Monitor • Copy Answer'); setNextEnabled(true); }  // allow Next immediately
+      if (page === PAGES.monFinal){ setTitle('Monitor • Live'); setNextVisible(false); }
     }
 
     function chooseRole(r){
       role = r;
-      if (role === 'camera'){
-        goto(PAGES.camStart);
-        show(PAGES.localPreview);
-      } else {
-        goto(PAGES.monOffer);
-        hide(PAGES.localPreview);
-      }
+      if (role === 'camera'){ goto(PAGES.camStart); show(PAGES.localPreview); }
+      else { goto(PAGES.monOffer); hide(PAGES.localPreview); }
     }
 
     function goBack(){
       if (current === PAGES.home) return;
       if (role === 'camera'){
-        if (current === PAGES.camConnect) { goto(PAGES.camStart); return; }
-        if (current === PAGES.camStart) { goto(PAGES.home); return; }
+        if (current === PAGES.camConnect) return goto(PAGES.camStart);
+        if (current === PAGES.camStart)  return goto(PAGES.home);
       } else {
-        if (current === PAGES.monAnswer) { goto(PAGES.monOffer); return; }
-        if (current === PAGES.monFinal) { goto(PAGES.monAnswer); return; }
-        if (current === PAGES.monOffer) { goto(PAGES.home); return; }
+        if (current === PAGES.monAnswer) return goto(PAGES.monOffer);
+        if (current === PAGES.monFinal)  return goto(PAGES.monAnswer);
+        if (current === PAGES.monOffer)  return goto(PAGES.home);
       }
     }
 
     function goNext(){
       if (role === 'camera'){
-        if (current === PAGES.camStart) { goto(PAGES.camConnect); return; }
-        return;
+        if (current === PAGES.camStart) return goto(PAGES.camConnect);
       } else {
-        if (current === PAGES.monOffer) { goto(PAGES.monAnswer); return; }
-        if (current === PAGES.monAnswer) { goto(PAGES.monFinal); return; }
+        if (current === PAGES.monOffer)  return goto(PAGES.monAnswer);
+        if (current === PAGES.monAnswer) return goto(PAGES.monFinal);
       }
     }
 
     /* Status helpers */
-    function info(id, m){ const el=document.getElementById(id); el.className='status info'; el.style.display='block'; el.textContent=m; }
-    function ok(id, m){ const el=document.getElementById(id); el.className='status ok'; el.style.display='block'; el.textContent=m; }
-    function err(id, m){ const el=document.getElementById(id); el.className='status err'; el.style.display='block'; el.textContent=m; }
+    function info(id,m){ const el=document.getElementById(id); el.className='status info'; el.style.display='block'; el.textContent=m; }
+    function ok(id,m){   const el=document.getElementById(id); el.className='status ok';   el.style.display='block'; el.textContent=m; }
+    function err(id,m){  const el=document.getElementById(id); el.className='status err';  el.style.display='block'; el.textContent=m; }
 
     /* Clipboard */
-    function copyOffer(){ const t=document.getElementById('offerText'); t.select(); document.execCommand('copy'); ok('cameraStatus','Copied offer. Send to Monitor.'); }
-    function copyAnswer(){ const t=document.getElementById('answerText'); t.select(); document.execCommand('copy'); ok('monitorStatus','Copied answer. Send to Camera.'); }
+    function copyOffer(){ const t=$('#offerText'); t.select(); document.execCommand('copy'); ok('cameraStatus','Copied offer. Send to Monitor.'); }
+    function copyAnswer(){ const t=$('#answerText'); t.select(); document.execCommand('copy'); ok('monitorStatus','Copied answer. Send to Camera.'); }
 
     /* CAMERA */
     async function startCamera(){
       try{
         info('cameraStatus','Requesting camera & mic…');
         localStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: {ideal:1920}, height:{ideal:1080} },
-          audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }
+          video:{facingMode:'environment', width:{ideal:1920}, height:{ideal:1080}},
+          audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}
         });
         $('#cameraVideo').srcObject = localStream;
 
         pc = new RTCPeerConnection(rtcConfig);
-
-        // DC on offerer
         dataChannel = pc.createDataChannel('ctrl');
-        dataChannel.onmessage = (ev) => {
-          try{
-            const msg = JSON.parse(ev.data);
-            if (msg.action === 'play') playSoundOnCamera(msg.sound);
-            if (msg.action === 'stop') stopSoundOnCamera();
-            if (msg.action === 'ping') dataChannel.send(JSON.stringify({action:'ready'}));
-          } catch{}
+        dataChannel.onmessage = (ev)=>{
+          try{ const msg=JSON.parse(ev.data);
+            if (msg.action==='play') playSoundOnCamera(msg.sound);
+            if (msg.action==='stop') stopSoundOnCamera();
+            if (msg.action==='ping') dataChannel.send(JSON.stringify({action:'ready'}));
+          }catch{}
         };
 
         localStream.getTracks().forEach(tr => pc.addTrack(tr, localStream));
 
-        pc.ontrack = (e) => {
-          if (e.track.kind === 'audio' && e.streams[0]) {
-            const ra = new Audio();
-            ra.srcObject = e.streams[0];
-            ra.play().catch(()=>{});
+        pc.ontrack = (e)=>{
+          if (e.track.kind==='audio' && e.streams[0]){
+            const ra = new Audio(); ra.srcObject = e.streams[0]; ra.play().catch(()=>{});
           }
         };
 
-        const gathered = [];
-        pc.onicecandidate = (ev)=>{ if (ev.candidate) gathered.push(ev.candidate); };
+        const gathered=[];
+        pc.onicecandidate = ev => { if (ev.candidate) gathered.push(ev.candidate); };
         pc.onicegatheringstatechange = ()=>{
-          if (pc.iceGatheringState === 'complete') {
+          if (pc.iceGatheringState==='complete'){
             const offerPkg = { sdp: pc.localDescription, candidates: gathered };
             $('#offerText').value = JSON.stringify(offerPkg);
             ok('cameraStatus','Offer ready. Copy and send to Monitor.');
-            setNextEnabled(true); // allow Next to Connect step
+            setNextEnabled(true);
           }
         };
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
-      } catch(e){
-        err('cameraStatus','Error: ' + e.message);
-      }
+      }catch(e){ err('cameraStatus','Error: '+e.message); }
     }
 
     async function connectCamera(){
       try{
         const raw = $('#answerInput').value.trim();
-        if (!raw) { err('cameraStatus2','Paste the answer first.'); return; }
+        if (!raw) return err('cameraStatus2','Paste the answer first.');
         const answer = JSON.parse(raw);
         await pc.setRemoteDescription(answer.sdp);
         if (answer.candidates) for (const c of answer.candidates) await pc.addIceCandidate(c);
         ok('cameraStatus2','Connected. Monitor can control sounds.');
-      } catch(e){
-        err('cameraStatus2','Error: ' + e.message);
-      }
+      }catch(e){ err('cameraStatus2','Error: '+e.message); }
     }
 
     /* MONITOR */
     async function createAnswer(){
       try{
         const raw = $('#offerInput').value.trim();
-        if (!raw) { err('monitorStatus','Paste the offer first.'); return; }
+        if (!raw) return err('monitorStatus','Paste the offer first.');
         info('monitorStatus','Creating connection…');
 
         const offer = JSON.parse(raw);
         pc = new RTCPeerConnection(rtcConfig);
 
-        pc.ondatachannel = (ev)=>{
+        pc.ondatachannel = ev => {
           dataChannel = ev.channel;
-          dataChannel.onopen = ()=> startPinging();
-          dataChannel.onmessage = (e)=>{
-            try {
+          dataChannel.onopen = startPinging;
+          dataChannel.onmessage = e => {
+            try{
               const msg = JSON.parse(e.data);
-              if (msg.action === 'ready') {
-                enableSoundControls();
-                ok('monitorStatus','Handshake complete. Sounds ready.');
-              }
-            } catch{}
+              if (msg.action==='ready'){ enableSoundControls(); ok('monitorStatus','Handshake complete. Sounds ready.'); }
+            }catch{}
           };
         };
 
         pc.onconnectionstatechange = ()=>{
-          if ((pc.connectionState === 'connected' || pc.connectionState === 'completed') && dataChannel && dataChannel.readyState === 'open'){
-            enableSoundControls();
-            ok('monitorStatus','Connected. Sounds enabled.');
-            stopPinging();
+          if ((pc.connectionState==='connected'||pc.connectionState==='completed') && dataChannel && dataChannel.readyState==='open'){
+            enableSoundControls(); ok('monitorStatus','Connected. Sounds enabled.'); stopPinging();
           }
         };
 
-        pc.ontrack = (e)=>{
-          if (e.track.kind === 'video') {
-            $('#monitorVideo').srcObject = e.streams[0];
-            $('#micBtn').style.display = 'flex';
-          }
+        pc.ontrack = e => {
+          if (e.track.kind==='video'){ $('#monitorVideo').srcObject = e.streams[0]; $('#micBtn').style.display='flex'; }
         };
 
         try{
-          monitorMicStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }});
+          monitorMicStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}});
           monitorMicTrack = monitorMicStream.getAudioTracks()[0];
-          monitorMicTrack.enabled = false;
-          pc.addTrack(monitorMicTrack, monitorMicStream);
-        } catch(e){}
+          monitorMicTrack.enabled=false; pc.addTrack(monitorMicTrack, monitorMicStream);
+        }catch{}
 
-        const gathered = [];
-        pc.onicecandidate = (ev)=>{ if (ev.candidate) gathered.push(ev.candidate); };
+        const gathered=[];
+        pc.onicecandidate = ev => { if (ev.candidate) gathered.push(ev.candidate); };
         pc.onicegatheringstatechange = ()=>{
-          if (pc.iceGatheringState === 'complete') {
+          if (pc.iceGatheringState==='complete'){
             const answerPkg = { sdp: pc.localDescription, candidates: gathered };
             $('#answerText').value = JSON.stringify(answerPkg);
             ok('monitorStatus','Answer ready. Copy and send to Camera.');
-            setNextEnabled(true); // allow Next to go to Copy step
+            setNextEnabled(true);
           }
         };
 
@@ -729,131 +529,69 @@
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
 
-      } catch(e){
-        err('monitorStatus','Error: ' + e.message);
-      }
+      }catch(e){ err('monitorStatus','Error: '+e.message); }
     }
 
     function startPinging(){
       stopPinging();
-      const hint = $('#soundHint');
-      let dots = 0;
-      pingTimer = setInterval(()=>{
-        if (!dataChannel || dataChannel.readyState !== 'open') return;
-        try { dataChannel.send(JSON.stringify({action:'ping'})); } catch {}
-        dots = (dots+1)%4;
-        hint.textContent = 'Waiting for Camera handshake' + '.'.repeat(dots);
-      }, 800);
+      const hint = $('#soundHint'); let dots=0;
+      pingTimer=setInterval(()=>{
+        if (!dataChannel||dataChannel.readyState!=='open') return;
+        try{ dataChannel.send(JSON.stringify({action:'ping'})); }catch{}
+        dots=(dots+1)%4; if (hint) hint.textContent = 'Waiting for Camera handshake' + '.'.repeat(dots);
+      },800);
     }
-    function stopPinging(){ if (pingTimer){ clearInterval(pingTimer); pingTimer = null; } }
+    function stopPinging(){ if (pingTimer){ clearInterval(pingTimer); pingTimer=null; } }
 
     function enableSoundControls(){
-      const sel = $('#soundSelect');
-      const stopBtn = $('#stopBtn');
-      sel.disabled = false; stopBtn.disabled = false;
-      $('#soundHint').textContent = '🎵 Sounds ready';
+      const sel=$('#soundSelect'), stopBtn=$('#stopBtn');
+      if (sel) sel.disabled=false; if (stopBtn) stopBtn.disabled=false;
+      const hint=$('#soundHint'); if (hint) hint.textContent='🎵 Sounds ready';
       stopPinging();
     }
 
     function onSoundChange(){
-      const sel = $('#soundSelect');
-      const val = sel.value;
-      if (!val) return;
-      if (!dataChannel || dataChannel.readyState !== 'open') return;
-      try { dataChannel.send(JSON.stringify({ action:'play', sound: val })); } catch {}
+      const sel=$('#soundSelect'); const val=sel.value;
+      if (!val) return; if (!dataChannel||dataChannel.readyState!=='open') return;
+      try{ dataChannel.send(JSON.stringify({action:'play', sound: val})); }catch{}
     }
     function sendStop(){
-      if (dataChannel && dataChannel.readyState === 'open') {
-        try { dataChannel.send(JSON.stringify({ action:'stop' })); } catch {}
-      }
-      $('#soundSelect').value = '';
+      if (dataChannel&&dataChannel.readyState==='open') { try{ dataChannel.send(JSON.stringify({action:'stop'})); }catch{} }
+      const sel=$('#soundSelect'); if (sel) sel.value='';
     }
 
-    function startTalking(){
-      const btn = $('#micBtn');
-      btn.classList.add('active'); btn.textContent = '🔴';
-      if (monitorMicTrack) monitorMicTrack.enabled = true;
-    }
-    function stopTalking(){
-      const btn = $('#micBtn');
-      btn.classList.remove('active'); btn.textContent = '🎤';
-      if (monitorMicTrack) monitorMicTrack.enabled = false;
-    }
+    function startTalking(){ const b=$('#micBtn'); if (b){ b.classList.add('active'); b.textContent='🔴'; } if (monitorMicTrack) monitorMicTrack.enabled=true; }
+    function stopTalking(){  const b=$('#micBtn'); if (b){ b.classList.remove('active'); b.textContent='🎤'; } if (monitorMicTrack) monitorMicTrack.enabled=false; }
 
-    /* CAMERA audio engine */
-    async function ensureAudioRunning() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        gain = audioCtx.createGain();
-        gain.gain.value = 0.28;
-        gain.connect(audioCtx.destination);
-      }
-      if (audioCtx.state === 'suspended') { try { await audioCtx.resume(); } catch{} }
+    /* Camera audio engine (exclusive playback) */
+    async function ensureAudioRunning(){
+      if (!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); gain = audioCtx.createGain(); gain.gain.value=.28; gain.connect(audioCtx.destination); }
+      if (audioCtx.state==='suspended'){ try{ await audioCtx.resume(); }catch{} }
     }
-
-    function stopSoundOnCamera() {
-      melodyActive = false;
-      if (melodyTimer) { try { clearTimeout(melodyTimer); } catch{} melodyTimer = null; }
-      try { if (currentOsc) { currentOsc.onended = null; currentOsc.stop(0); } } catch{}
-      try { if (currentOsc) currentOsc.disconnect(); } catch{}
-      currentOsc = null;
-      try { if (currentSrc) { currentSrc.onended = null; currentSrc.stop(0); } } catch{}
-      try { if (currentSrc) currentSrc.disconnect(); } catch{}
-      currentSrc = null;
+    function stopSoundOnCamera(){
+      melodyActive=false; if (melodyTimer){ try{ clearTimeout(melodyTimer); }catch{} melodyTimer=null; }
+      try{ if (currentOsc){ currentOsc.onended=null; currentOsc.stop(0); } }catch{} try{ if (currentOsc) currentOsc.disconnect(); }catch{} currentOsc=null;
+      try{ if (currentSrc){ currentSrc.onended=null; currentSrc.stop(0); } }catch{} try{ if (currentSrc) currentSrc.disconnect(); }catch{} currentSrc=null;
     }
-
-    async function playSoundOnCamera(kind) {
-      await ensureAudioRunning();
-      stopSoundOnCamera();
-      if (kind === 'whitenoise') return playWhiteNoise();
-      if (kind === 'rain') return playRain();
-      if (kind === 'lullaby1') return playMelody([261.63,261.63,392.00,392.00,440.00,440.00,392.00,349.23,349.23,329.63,329.63,293.66,293.66,261.63], 0.52, 620);
-      if (kind === 'lullaby2') return playMelody([329.63,293.66,293.66,329.63,293.66,261.63,293.66,329.63,329.63,293.66], 0.52, 620);
+    async function playSoundOnCamera(kind){
+      await ensureAudioRunning(); stopSoundOnCamera();
+      if (kind==='whitenoise') return playWhiteNoise();
+      if (kind==='rain') return playRain();
+      if (kind==='lullaby1') return playMelody([261.63,261.63,392.00,392.00,440.00,440.00,392.00,349.23,349.23,329.63,329.63,293.66,293.66,261.63], .52, 620);
+      if (kind==='lullaby2') return playMelody([329.63,293.66,293.66,329.63,293.66,261.63,293.66,329.63,329.63,293.66], .52, 620);
     }
-
-    function playMelody(notes, noteDur = 0.5, gapMs = 620) {
-      melodyActive = true;
-      let i = 0;
-      const step = () => {
-        if (!melodyActive) return;
-        const osc = audioCtx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.value = notes[i];
-        osc.connect(gain);
-        currentOsc = osc;
-        const stopAt = audioCtx.currentTime + noteDur;
-        osc.start(); osc.stop(stopAt);
-        osc.onended = () => {
-          if (!melodyActive) return;
-          i = (i + 1) % notes.length;
-          melodyTimer = setTimeout(step, gapMs);
-        };
-      };
-      step();
+    function playMelody(notes, noteDur=.5, gapMs=620){
+      melodyActive=true; let i=0;
+      const step=()=>{ if (!melodyActive) return;
+        const osc=audioCtx.createOscillator(); osc.type='sine'; osc.frequency.value=notes[i]; osc.connect(gain); currentOsc=osc;
+        const stopAt=audioCtx.currentTime+noteDur; osc.start(); osc.stop(stopAt);
+        osc.onended=()=>{ if (!melodyActive) return; i=(i+1)%notes.length; melodyTimer=setTimeout(step, gapMs); };
+      }; step();
     }
+    function playWhiteNoise(){ const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0); for(let i=0;i<n;i++) ch[i]=Math.random()*2-1; const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(gain); src.start(0); currentSrc=src; }
+    function playRain(){ const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0); for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*0.5; const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900; const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(lp); lp.connect(gain); src.start(0); currentSrc=src; }
 
-    function playWhiteNoise() {
-      const frames = audioCtx.sampleRate * 2;
-      const buf = audioCtx.createBuffer(1, frames, audioCtx.sampleRate);
-      const ch = buf.getChannelData(0);
-      for (let i = 0; i < frames; i++) ch[i] = Math.random() * 2 - 1;
-      const src = audioCtx.createBufferSource();
-      src.buffer = buf; src.loop = true; src.connect(gain); src.start(0);
-      currentSrc = src;
-    }
-
-    function playRain() {
-      const frames = audioCtx.sampleRate * 2;
-      const buf = audioCtx.createBuffer(1, frames, audioCtx.sampleRate);
-      const ch = buf.getChannelData(0);
-      for (let i = 0; i < frames; i++) ch[i] = (Math.random() * 2 - 1) * 0.5;
-      const lp = audioCtx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
-      const src = audioCtx.createBufferSource();
-      src.buffer = buf; src.loop = true; src.connect(lp); lp.connect(gain); src.start(0);
-      currentSrc = src;
-    }
-
-    // Init
+    /* Init */
     goto(PAGES.home);
   </script>
 </body>
