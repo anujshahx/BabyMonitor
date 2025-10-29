@@ -2,514 +2,597 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta
+    name="viewport"
+    content="user-scalable=no, width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
   <title>Baby Monitor</title>
+  <!-- Rich font (update later if you prefer): -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
-    /* Global reset to prevent horizontal drift and scrolling */
+    /* Global reset and base */
     * { box-sizing: border-box; }
     html, body {
       height: 100%;
       width: 100%;
       margin: 0;
-      overflow: hidden;         /* no page scroll */
+      overflow: hidden;                /* no page scroll; feels native */
       overscroll-behavior: none;
-      background: #0f1025;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: #111827;
-    }
-    :root{
-      --brand1:#667eea; --brand2:#764ba2;
-      --accent1:#11998e; --accent2:#38ef7d;
-      --bg-card:#ffffff; --text:#1f2937; --muted:#4b5563;
-      --danger1:#ff6b6b; --danger2:#ee5a6f;
-      --bar-h:56px;     /* top app bar */
-      --nav-h:64px;     /* bottom footer height */
-      --page-pad:12px;
+      background: #0b1020;
+      color: #0f172a;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
-    /* App frame: top bar + scroll-free content (we use internal scroll if needed) */
+    :root{
+      --brand1:#5b7bff; --brand2:#7a47e8;            /* primary gradient */
+      --accent1:#00b894; --accent2:#2ecc71;          /* secondary gradient */
+      --danger1:#ff6b6b; --danger2:#ee5a6f;
+      --bg-card:#ffffff; --text:#0f172a; --muted:#475569;
+      --bar-h:56px;     /* top app bar */
+      --nav-h:68px;     /* bottom footer height */
+      --pad:14px;
+      --radius:18px;
+      --shadow: 0 18px 50px rgba(0,0,0,.22);
+      --shadow-soft: 0 10px 28px rgba(0,0,0,.12);
+      --glass: rgba(255,255,255,.16);
+    }
+
+    /* App frame: top bar + content; bottom Next is fixed */
     .app {
-      height: 100dvh;                            /* dynamic viewport height */
+      height: 100dvh;                                    /* dynamic viewport height on mobile */
       width: 100%;
       display: grid;
-      grid-template-rows: var(--bar-h) 1fr;      /* footer is fixed */
-      background: linear-gradient(135deg, var(--brand1), var(--brand2));
-      overflow-x: hidden;                        /* prevent horizontal shift */
+      grid-template-rows: var(--bar-h) 1fr;              /* footer is fixed on body */
+      background: radial-gradient(1200px 600px at 100% -10%, rgba(255,255,255,.25) 0%, rgba(255,255,255,0) 60%),
+                  linear-gradient(135deg, var(--brand1), var(--brand2));
     }
 
-    /* Top bar */
+    /* Top app bar */
     .appbar {
       height: var(--bar-h);
-      display: flex; align-items: center;
-      padding: 0 var(--page-pad);
-      color: #fff; background: transparent;
+      display: grid;
+      grid-template-columns: 40px 1fr auto;
+      align-items: center;
+      padding: 0 var(--pad);
+      color: #fff;
+      background: transparent;
     }
     .back {
-      width: 40px; height: 40px; margin-right: 8px;
-      border: 0; border-radius: 10px;
-      background: rgba(255,255,255,0.15); color: #fff;
-      display: inline-flex; align-items: center; justify-content: center;
-      cursor: pointer; visibility: hidden;       /* toggled in JS */
+      width: 40px; height: 40px; border: 0; border-radius: 10px;
+      background: var(--glass);
+      color: #fff; display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer; visibility: hidden; transition: transform .08s ease;
     }
-    .logo {
+    .back:active { transform: scale(.96); }
+
+    .brand {
       display: inline-flex; align-items: center; gap: 10px;
-      color: #fff; font-weight: 800; font-size: 16px;
+      color: #fff; font-weight: 800; letter-spacing: .2px; font-size: 16px;
     }
-    .logo svg { width: 22px; height: 22px; display: block; }
-    .title { margin-left: 12px; color: #e5e7eb; font-weight: 600; font-size: 14px; opacity: .9; }
+    .brand svg { width: 22px; height: 22px; display: block; }
+    .title { color: #e5e7eb; font-weight: 600; font-size: 13px; opacity: .9; margin-left: 12px; }
 
-    /* Content region with bottom padding to account for fixed footer */
-    .content-wrap {
+    /* Content region with space reserved for footer */
+    .content {
       position: relative;
-      padding: var(--page-pad);
-      padding-bottom: calc(var(--nav-h) + var(--page-pad));   /* reserve space for fixed Next */
       height: 100%;
       width: 100%;
-      overflow: hidden;
+      padding: var(--pad);
+      padding-bottom: calc(var(--nav-h) + var(--pad));
+      display: grid; place-items: center;
     }
 
-    /* Centered card that never overflows width */
     .card {
-      width: 100%;
-      max-width: 720px;
+      width: min(720px, 100%);
       height: 100%;
-      margin: 0 auto;                     /* centers the frame */
       background: var(--bg-card);
-      border-radius: 20px;
-      box-shadow: 0 18px 50px rgba(0,0,0,0.25);
-      display: flex; flex-direction: column;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
       overflow: hidden;
-    }
-    .card-inner {
-      flex: 1 1 auto; height: 100%; width: 100%;
-      padding: var(--page-pad);
-      display: grid; grid-template-rows: 1fr;
-      gap: 12px;
-      background:
-        radial-gradient(1000px 500px at 100% -10%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 70%),
-        linear-gradient(180deg,#ffffff 0%, #f9fafb 100%);
-      overflow: hidden;
+      display: grid;
+      grid-template-rows: 1fr;
+      position: relative;
     }
 
-    .panel { display: none; height: 100%; overflow: hidden; }
+    /* Panels with animated transitions */
+    .panel {
+      position: absolute; inset: 0;
+      padding: var(--pad);
+      display: none;
+      background:
+        radial-gradient(900px 450px at 120% -20%, rgba(123,97,255,.15) 0%, rgba(255,255,255,0) 60%),
+        linear-gradient(180deg,#ffffff 0%, #f7f9fb 70%);
+    }
     .panel.active { display: block; }
 
+    /* Slide animations */
+    .enter-right { animation: enter-right .28s ease both; }
+    .leave-left  { animation: leave-left  .28s ease both; }
+    .enter-left  { animation: enter-left  .28s ease both; }
+    .leave-right { animation: leave-right .28s ease both; }
+
+    @keyframes enter-right { from { opacity:0; transform: translateX(30px); } to { opacity:1; transform: translateX(0); } }
+    @keyframes leave-left  { from { opacity:1; transform: translateX(0); } to { opacity:0; transform: translateX(-30px);} }
+    @keyframes enter-left  { from { opacity:0; transform: translateX(-30px);} to { opacity:1; transform: translateX(0);} }
+    @keyframes leave-right { from { opacity:1; transform: translateX(0);} to { opacity:0; transform: translateX(30px);} }
+
+    /* Section header */
     .section {
       background: linear-gradient(135deg, #f5f7fa 0%, #eaeffd 100%);
       border-left: 6px solid var(--brand1);
       border-radius: 14px;
       padding: 12px;
       color: var(--text);
-      font-weight: 700;
+      font-weight: 800;
       display: flex; align-items: center; gap: 10px; min-height: 40px;
-      margin-bottom: 8px;
+      box-shadow: var(--shadow-soft);
+      margin-bottom: 10px;
     }
-    .section .num {
-      width: 26px; height: 26px; border-radius: 7px;
+    .num {
+      width: 26px; height: 26px; border-radius: 7px; flex: 0 0 26px;
       background: linear-gradient(135deg, var(--brand1), var(--brand2));
-      color: #fff; font-size: 12px; font-weight: 900;
-      display: inline-flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      color: #fff; font-size: 12px; font-weight: 900; display: grid; place-items: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,.14);
     }
 
-    .stage { height: calc(100% - 48px); display: grid; grid-template-rows: 1fr; overflow: hidden; }
-    .stack { height: 100%; display: grid; grid-template-rows: auto 1fr auto; gap: 10px; overflow: hidden; }
-
+    /* Stacks */
+    .stack { height: calc(100% - 58px); display: grid; grid-template-rows: auto 1fr auto; gap: 12px; }
     .status {
-      width: 100%; padding: 10px 12px; border-radius: 12px;
-      text-align: center; font-weight: 700; font-size: 13px;
+      width: 100%; padding: 10px 12px; border-radius: 12px; text-align: center; font-weight: 700; font-size: 13px;
+      box-shadow: var(--shadow-soft);
     }
-    .status.info { background: #eaf2fd; color: #174aa7; border: 1px solid #c8dbfb; }
-    .status.ok   { background: #e8f7ee; color: #146c2e; border: 1px solid #bfe7cb; }
-    .status.err  { background: #fde8ea; color: #821d2a; border: 1px solid #f3c2c8; }
+    .info { background: #eaf2fd; color: #174aa7; border: 1px solid #c8dbfb; }
+    .ok   { background: #e8f7ee; color: #146c2e; border: 1px solid #bfe7cb; }
+    .err  { background: #fde8ea; color: #821d2a; border: 1px solid #f3c2c8; }
 
+    /* Buttons */
+    .row { display: grid; grid-template-columns: 1fr; gap: 10px; }
     .btn {
-      width: 100%; padding: 12px;
-      border: 0; border-radius: 12px;
-      font-weight: 800; font-size: 15px; color: #fff;
-      cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+      width: 100%; padding: 14px; border: 0; border-radius: 14px;
+      color: #fff; font-weight: 800; font-size: 15px; cursor: pointer;
       background: linear-gradient(135deg, var(--brand1), var(--brand2));
+      box-shadow: var(--shadow-soft);
+      transition: transform .08s ease, filter .2s ease;
     }
     .btn.secondary { background: linear-gradient(135deg, var(--accent1), var(--accent2)); }
-    .btn.copy      { background: linear-gradient(135deg, #f093fb, #f5576c); }
-    .btn.danger    { background: linear-gradient(135deg, var(--danger1), var(--danger2)); }
-    .btn:disabled  { opacity: .5; cursor: not-allowed; }
+    .btn.copy { background: linear-gradient(135deg, #f093fb, #f5576c); }
+    .btn.danger { background: linear-gradient(135deg, var(--danger1), var(--danger2)); }
+    .btn:active { transform: scale(.98); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
 
+    /* Inputs */
     textarea {
-      width: 100%; height: 28vh; min-height: 120px;
-      resize: none; overflow: auto;
-      border: 2px solid #e5e7eb; border-radius: 12px;
-      background: #f8fafc; padding: 10px;
+      width: 100%; height: 28vh; min-height: 120px; border: 2px solid #e5e7eb; border-radius: 14px;
+      background: #f8fafc; padding: 10px; resize: none; overflow: auto;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      font-size: 12px; color: #111827;
+      font-size: 12px; color: #0f172a;
+      box-shadow: var(--shadow-soft);
     }
 
-    /* Video well */
-    .video-wrap {
-      width: 100%; height: 34vh; min-height: 170px;
-      background: #000; border-radius: 14px; overflow: hidden;
-      position: relative; box-shadow: 0 12px 28px rgba(0,0,0,0.20);
+    /* Video wells */
+    .video {
+      width: 100%; height: 34vh; min-height: 170px; background:#000; border-radius: 14px; overflow: hidden; position: relative;
+      box-shadow: var(--shadow);
     }
-    video { width: 100%; height: 100%; object-fit: cover; background: #000; display: block; }
+    video { width: 100%; height: 100%; object-fit: cover; display: block; background:#000; }
 
-    /* Final screen controls */
+    /* Mic FAB (final monitor view) */
     .fab {
-      position: absolute; right: 12px; bottom: 12px;
-      width: 56px; height: 56px; border-radius: 50%; border: 0; cursor: pointer;
-      color: #fff; font-size: 22px;
-      display: none; align-items: center; justify-content: center;
-      background: linear-gradient(135deg, var(--danger1), var(--danger2));
-      box-shadow: 0 12px 24px rgba(0,0,0,0.25);
+      position: absolute; right: 12px; bottom: 12px; width: 56px; height: 56px; border-radius: 50%; border: 0;
+      color: #fff; font-size: 22px; display: none; align-items: center; justify-content: center; cursor: pointer;
+      background: linear-gradient(135deg, var(--danger1), var(--danger2)); box-shadow: 0 12px 24px rgba(0,0,0,.25);
+      transition: transform .08s ease;
     }
+    .fab:active { transform: scale(.96); }
     .fab.active { background: linear-gradient(135deg, #ee5a6f, #c92a2a); }
 
-    .controls-row {
-      display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
+    /* Pro lullaby selector row */
+    .controls {
+      display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
     }
-    select {
-      width: 100%; border: 2px solid #e5e7eb; border-radius: 12px; background: #fff; padding: 10px;
-      font-weight: 700; color: var(--text);
+    .select {
+      position: relative;
+      border: 2px solid #e5e7eb; border-radius: 14px; background:#fff; padding: 0 12px; height: 44px; display: flex; align-items: center;
+      font-weight: 700; color: var(--text); box-shadow: var(--shadow-soft);
     }
-    .stop-small {
-      padding: 10px 14px; border-radius: 12px; border: 0; font-weight: 800; color: #fff;
-      background: linear-gradient(135deg, var(--danger1), var(--danger2));
-      box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+    .select select {
+      appearance: none; -webkit-appearance: none; -moz-appearance: none;
+      border: 0; outline: 0; background: transparent; width: 100%; height: 100%; font-weight: 700; color: var(--text);
+      font-family: inherit; cursor: pointer;
     }
-    .hint { text-align: center; color: var(--muted); font-size: 12px; }
+    .select:after {
+      content: '▾'; position: absolute; right: 12px; color: var(--muted); pointer-events: none; font-size: 14px;
+    }
+    .pill {
+      padding: 0 14px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 14px; border: 0;
+      color: #fff; font-weight: 800; cursor: pointer; box-shadow: var(--shadow-soft);
+      background: linear-gradient(135deg, var(--accent1), var(--accent2));
+      transition: transform .08s ease;
+    }
+    .pill:active { transform: scale(.98); }
+    .pill.stop { background: linear-gradient(135deg, var(--danger1), var(--danger2)); }
 
-    /* Fixed footer Next: always visible above safe area */
+    /* Fixed bottom Next */
     .footer {
-      position: fixed;
-      left: 0; right: 0; bottom: 0;
-      height: var(--nav-h);
-      background: #ffffff;
-      border-top-left-radius: 16px; border-top-right-radius: 16px;
-      box-shadow: 0 -10px 30px rgba(0,0,0,0.12);
-      padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) 12px; /* safe area */
+      position: fixed; left: 0; right: 0; bottom: 0; height: var(--nav-h);
+      background:#fff; border-top-left-radius: 16px; border-top-right-radius: 16px; box-shadow: 0 -10px 30px rgba(0,0,0,.12);
+      padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) 12px; z-index: 9;
       display: grid; grid-template-columns: 1fr; align-items: center;
-      z-index: 99;
     }
     .next {
-      width: 100%; height: 100%;
-      border: 0; border-radius: 12px; cursor: pointer;
-      background: linear-gradient(135deg, var(--accent1), var(--accent2));
-      color: #fff; font-weight: 900; letter-spacing: .3px; font-size: 16px;
+      width: 100%; height: 100%; border:0; border-radius: 14px; cursor: pointer;
+      background: linear-gradient(135deg, var(--accent1), var(--accent2)); color: #fff; font-weight: 900; letter-spacing: .3px; font-size: 16px;
+      transition: transform .08s ease; box-shadow: var(--shadow-soft);
     }
-    .next:disabled { opacity: .45; cursor: not-allowed; }
-
-    /* Role choices */
-    .choice-grid { height: 100%; display: grid; grid-template-rows: 1fr 1fr; gap: 12px; }
-    .role {
-      border: 0; border-radius: 14px; padding: 14px; cursor: pointer;
-      color: #fff; font-weight: 900; font-size: 16px;
-      background: linear-gradient(135deg, var(--brand1), var(--brand2));
-      box-shadow: 0 10px 24px rgba(0,0,0,0.18);
-    }
-    .role.secondary { background: linear-gradient(135deg, var(--accent1), var(--accent2)); }
+    .next:active { transform: scale(.98); }
+    .next:disabled { opacity:.45; cursor: not-allowed; }
 
     .hidden { display: none !important; }
   </style>
 </head>
 <body>
-  <div class="app" id="app">
-    <!-- Top Bar -->
+  <div class="app">
+    <!-- Top bar -->
     <div class="appbar">
-      <button class="back" id="backBtn" aria-label="Back" title="Back" onclick="goBack()">
+      <button id="backBtn" class="back" onclick="goBack()" aria-label="Back" title="Back">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
       </button>
-      <div class="logo">
+      <div class="brand">
         <svg viewBox="0 0 64 64" aria-hidden="true">
-          <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#667eea"/><stop offset="100%" stop-color="#764ba2"/></linearGradient></defs>
-        <circle cx="32" cy="32" r="28" fill="url(#g)"/><rect x="18" y="22" width="28" height="20" rx="6" fill="#fff"/><circle cx="32" cy="32" r="6" fill="url(#g)"/></svg>
+          <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5b7bff"/><stop offset="100%" stop-color="#7a47e8"/></linearGradient></defs>
+          <circle cx="32" cy="32" r="28" fill="url(#g)"/><rect x="18" y="22" width="28" height="20" rx="6" fill="#fff"/><circle cx="32" cy="32" r="6" fill="url(#g)"/>
+        </svg>
         Baby Monitor
+        <span id="title" class="title">Home</span>
       </div>
-      <div class="title" id="titleBar">Home</div>
     </div>
 
     <!-- Content -->
-    <div class="content-wrap">
-      <div class="card">
-        <div class="card-inner">
+    <div class="content">
+      <div class="card" id="card">
 
-          <!-- Home -->
-          <div id="panelHome" class="panel active">
-            <div class="section"><span class="num">•</span>Choose what this device will do</div>
-            <div class="stage">
-              <div class="stack">
-                <div class="choice-grid">
-                  <button class="role" onclick="chooseRole('camera')">📷 Use as Camera</button>
-                  <button class="role secondary" onclick="chooseRole('monitor')">📺 Use as Monitor</button>
-                </div>
-                <div class="status info">Both devices on the same network connect faster.</div>
+        <!-- Home -->
+        <section id="home" class="panel active">
+          <div class="section"><span class="num">•</span>Choose what this device will do</div>
+          <div class="stack">
+            <div class="row" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+              <button class="btn" onclick="chooseRole('camera')">📷 Use as Camera</button>
+              <button class="btn secondary" onclick="chooseRole('monitor')">📺 Use as Monitor</button>
+            </div>
+            <div class="status info">No login needed; share a code once to connect securely peer‑to‑peer. </div>
+            <div class="status info">Tip: Keep both phones on the same network for the fastest pairing. </div>
+          </div>
+        </section>
+
+        <!-- Camera: Start + Offer -->
+        <section id="cam1" class="panel">
+          <div class="section"><span class="num">1</span>Start camera & generate offer</div>
+          <div class="stack">
+            <div id="camStatus" class="status info">Press Start to allow camera & mic. </div>
+            <div class="row">
+              <button class="btn" onclick="startCamera()">▶ Start Camera</button>
+            </div>
+            <div class="row">
+              <textarea id="offerText" readonly placeholder="Offer will appear here after ICE gathering…"></textarea>
+              <div class="row" style="grid-template-columns: auto 1fr; gap: 8px;">
+                <button class="btn copy" onclick="copyText('offerText')">📋 Copy Offer</button>
+                <div class="status info" id="copyOfferMsg" style="display:none;">Copied. Send to Monitor. </div>
               </div>
             </div>
           </div>
+        </section>
 
-          <!-- Camera: Start & Offer -->
-          <div id="panelCamStart" class="panel">
-            <div class="section"><span class="num">1</span>Start camera & generate offer</div>
-            <div class="stage">
-              <div class="stack">
-                <div class="status info" id="cameraStatus">Press Start to allow camera & mic.</div>
-                <button class="btn" onclick="startCamera()">▶ Start Camera</button>
-                <div>
-                  <textarea id="offerText" readonly placeholder="Offer will appear here after ICE gathering…"></textarea>
-                  <button class="btn copy" onclick="copyOffer()">📋 Copy Offer</button>
-                </div>
+        <!-- Camera: Paste Answer -->
+        <section id="cam2" class="panel">
+          <div class="section"><span class="num">2</span>Paste answer from Monitor & connect</div>
+          <div class="stack">
+            <textarea id="answerInput" placeholder="Paste answer JSON here…"></textarea>
+            <div class="row">
+              <button class="btn secondary" onclick="connectCamera()">✓ Connect</button>
+            </div>
+            <div id="camStatus2" class="status info" style="display:none;"></div>
+          </div>
+        </section>
+
+        <!-- Camera: Final (local preview) -->
+        <section id="cam3" class="panel">
+          <div class="section"><span class="num">✓</span>Camera is live</div>
+          <div class="stack">
+            <div class="video"><video id="cameraVideo" autoplay muted playsinline></video></div>
+            <div class="status ok">This device is now streaming to the Monitor. </div>
+            <div class="status info">Leave this screen open while monitoring. </div>
+          </div>
+        </section>
+
+        <!-- Monitor: Paste Offer -->
+        <section id="mon1" class="panel">
+          <div class="section"><span class="num">1</span>Paste offer from Camera</div>
+          <div class="stack">
+            <textarea id="offerInput" placeholder="Paste offer JSON here…"></textarea>
+            <div class="row">
+              <button class="btn" onclick="createAnswer()">🔗 Create Answer</button>
+            </div>
+            <div id="monStatus" class="status info" style="display:none;"></div>
+          </div>
+        </section>
+
+        <!-- Monitor: Copy Answer -->
+        <section id="mon2" class="panel">
+          <div class="section"><span class="num">2</span>Copy answer & send to Camera</div>
+          <div class="stack">
+            <div class="row">
+              <textarea id="answerText" readonly placeholder="Answer will appear here…"></textarea>
+              <div class="row" style="grid-template-columns: auto 1fr; gap: 8px;">
+                <button class="btn copy" onclick="copyText('answerText')">📋 Copy Answer</button>
+                <div class="status info" id="copyAnswerMsg" style="display:none;">Copied. Send to Camera. </div>
               </div>
             </div>
+            <div class="status info">Press Next when the Camera has connected. </div>
           </div>
+        </section>
 
-          <!-- Camera: Connect -->
-          <div id="panelCamConnect" class="panel">
-            <div class="section"><span class="num">2</span>Paste answer from Monitor & connect</div>
-            <div class="stage">
-              <div class="stack">
-                <textarea id="answerInput" placeholder="Paste answer JSON here…"></textarea>
-                <button class="btn secondary" onclick="connectCamera()">✓ Connect</button>
-                <div class="status info" id="cameraStatus2" style="display:none"></div>
+        <!-- Monitor: Final (live view + controls) -->
+        <section id="mon3" class="panel">
+          <div class="section"><span class="num">✓</span>Monitor live</div>
+          <div class="stack">
+            <div class="video">
+              <video id="monitorVideo" autoplay playsinline muted></video>
+              <button id="micBtn" class="fab" title="Hold to Talk"
+                onpointerdown="startTalking()" onpointerup="stopTalking()"
+                ontouchstart="startTalking()" ontouchend="stopTalking()">🎤</button>
+            </div>
+
+            <div class="controls">
+              <div class="select">
+                <select id="soundSelect" aria-label="Select lullaby or sound" disabled>
+                  <option value="">Select lullaby or sound…</option>
+                  <option value="lullaby1">🎼 Twinkle Twinkle</option>
+                  <option value="lullaby2">🌙 Brahms Lullaby</option>
+                  <option value="whitenoise">🌊 White Noise</option>
+                  <option value="rain">🌧️ Rain</option>
+                </select>
               </div>
+              <button class="pill" id="playBtn" onclick="playSelected()" disabled>▶ Play</button>
+              <button class="pill stop" id="stopBtn" onclick="sendStop()" disabled>⏹ Stop</button>
             </div>
-          </div>
 
-          <!-- Monitor: Paste Offer -->
-          <div id="panelMonOffer" class="panel">
-            <div class="section"><span class="num">1</span>Paste offer from Camera</div>
-            <div class="stage">
-              <div class="stack">
-                <textarea id="offerInput" placeholder="Paste offer JSON here…"></textarea>
-                <button class="btn" onclick="createAnswer()">🔗 Create Answer</button>
-                <div class="status info" id="monitorStatus" style="display:none"></div>
-              </div>
-            </div>
+            <div id="soundHint" class="status info">Waiting for Camera handshake… </div>
           </div>
+        </section>
 
-          <!-- Monitor: Copy Answer -->
-          <div id="panelMonAnswer" class="panel">
-            <div class="section"><span class="num">2</span>Copy answer & send back to Camera</div>
-            <div class="stage">
-              <div class="stack">
-                <div>
-                  <textarea id="answerText" readonly onclick="this.select()" placeholder="Answer will appear here…"></textarea>
-                  <button class="btn copy" onclick="copyAnswer()">📋 Copy Answer</button>
-                </div>
-                <div class="status info">Press Next to open the live monitor view.</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Monitor: Final Live -->
-          <div id="panelMonFinal" class="panel">
-            <div class="section"><span class="num">✓</span>Monitor live</div>
-            <div class="stage">
-              <div class="stack">
-                <div class="video-wrap">
-                  <video id="monitorVideo" autoplay playsinline muted></video>
-                  <button id="micBtn" class="fab" title="Hold to Talk"
-                    onpointerdown="startTalking()" onpointerup="stopTalking()"
-                    ontouchstart="startTalking()" ontouchend="stopTalking()">🎤</button>
-                </div>
-                <div class="controls-row">
-                  <select id="soundSelect" onchange="onSoundChange()" disabled>
-                    <option value="">Select lullaby or sound…</option>
-                    <option value="lullaby1">🎼 Twinkle Twinkle</option>
-                    <option value="lullaby2">🌙 Brahms Lullaby</option>
-                    <option value="whitenoise">🌊 White Noise</option>
-                    <option value="rain">🌧️ Rain</option>
-                  </select>
-                  <button class="stop-small" onclick="sendStop()" id="stopBtn" disabled>⏹ Stop</button>
-                </div>
-                <div class="hint" id="soundHint">Waiting for Camera handshake…</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Local Preview (camera only) -->
-          <div id="localPreview" class="panel">
-            <div class="section"><span class="num">•</span>Local preview</div>
-            <div class="stage">
-              <div class="video-wrap"><video id="cameraVideo" autoplay muted playsinline></video></div>
-            </div>
-          </div>
-
-        </div>
       </div>
     </div>
 
-    <!-- Fixed Footer (Next) -->
+    <!-- Fixed footer -->
     <div class="footer">
       <button id="nextBtn" class="next" onclick="goNext()" disabled>Next</button>
     </div>
   </div>
 
   <script>
-    /* Wizard state */
-    const PAGES = {
-      home:'panelHome', camStart:'panelCamStart', camConnect:'panelCamConnect',
-      monOffer:'panelMonOffer', monAnswer:'panelMonAnswer', monFinal:'panelMonFinal',
-      localPreview:'localPreview',
-    };
-    let role = null, current = PAGES.home;
+    /* Wizard State */
+    const P = { home:'home', cam1:'cam1', cam2:'cam2', cam3:'cam3', mon1:'mon1', mon2:'mon2', mon3:'mon3' };
+    let role = null;
+    let current = P.home;
+    let animLock = false;
 
-    /* WebRTC state */
-    const rtcConfig = { iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}] };
-    let pc=null, localStream=null, cameraAudioTrack=null, monitorMicStream=null, monitorMicTrack=null, dataChannel=null;
-    let pingTimer=null;
+    const titleEl = document.getElementById('title');
+    const backBtn = document.getElementById('backBtn');
+    const nextBtn = document.getElementById('nextBtn');
 
-    /* Audio engine (camera) */
-    let audioCtx=null, gain=null, currentOsc=null, currentSrc=null, melodyTimer=null, melodyActive=false;
+    function setTitle(t){ titleEl.textContent = t; }
+    function setBack(v){ backBtn.style.visibility = v ? 'visible' : 'hidden'; }
+    function setNext(v){ nextBtn.disabled = !v; }
+    function showCopied(msgId){
+      const el = document.getElementById(msgId);
+      el.style.display = 'block';
+      setTimeout(()=> el.style.display='none', 1400);
+    }
 
-    const $ = s => document.querySelector(s);
-    const show = id => document.getElementById(id).classList.add('active');
-    const hide = id => document.getElementById(id).classList.remove('active');
-    const setTitle = t => document.getElementById('titleBar').textContent = t;
-    const setBackVisible = v => document.getElementById('backBtn').style.visibility = v ? 'visible' : 'hidden';
-    const setNextEnabled = v => document.getElementById('nextBtn').disabled = !v;
-    const setNextVisible = v => document.getElementById('nextBtn').classList.toggle('hidden', !v);
+    function switchPanel(nextId, dir='forward'){
+      if (animLock) return;
+      animLock = true;
+      const card = document.getElementById('card');
+      const panels = card.querySelectorAll('.panel');
+      const from = document.getElementById(current);
+      const to = document.getElementById(nextId);
+      panels.forEach(p => p.classList.remove('active','enter-right','leave-left','enter-left','leave-right'));
+      from.classList.add(dir==='forward' ? 'leave-left' : 'leave-right');
+      to.classList.add('active', dir==='forward' ? 'enter-right' : 'enter-left');
+      setTimeout(()=> { current = nextId; animLock=false; }, 280);
+    }
 
-    function goto(page){
-      Object.values(PAGES).forEach(id => hide(id));
-      show(page); current = page;
-
-      if (page === PAGES.home){ setTitle('Home'); setBackVisible(false); setNextVisible(true); setNextEnabled(false); }
-      else { setBackVisible(true); setNextVisible(true); setNextEnabled(false); }
-
-      if (page === PAGES.camStart) setTitle('Camera • Generate Offer');
-      if (page === PAGES.camConnect) setTitle('Camera • Connect');
-      if (page === PAGES.monOffer) setTitle('Monitor • Paste Offer');
-      if (page === PAGES.monAnswer){ setTitle('Monitor • Copy Answer'); setNextEnabled(true); }  // allow Next immediately
-      if (page === PAGES.monFinal){ setTitle('Monitor • Live'); setNextVisible(false); }
+    function goto(id, dir='forward'){ switchPanel(id, dir); configureTop(); }
+    function configureTop(){
+      if (current===P.home){ setTitle('Home'); setBack(false); setNext(false); return; }
+      setBack(true); setNext(false);
+      if (role==='camera'){
+        if (current===P.cam1) setTitle('Camera • Generate Offer');
+        if (current===P.cam2) setTitle('Camera • Connect');
+        if (current===P.cam3) { setTitle('Camera • Live'); nextBtn.classList.add('hidden'); }
+        else nextBtn.classList.remove('hidden');
+      } else {
+        if (current===P.mon1) setTitle('Monitor • Paste Offer');
+        if (current===P.mon2) { setTitle('Monitor • Copy Answer'); setNext(true); }
+        if (current===P.mon3) { setTitle('Monitor • Live'); nextBtn.classList.add('hidden'); }
+        else nextBtn.classList.remove('hidden');
+      }
     }
 
     function chooseRole(r){
       role = r;
-      if (role === 'camera'){ goto(PAGES.camStart); show(PAGES.localPreview); }
-      else { goto(PAGES.monOffer); hide(PAGES.localPreview); }
+      if (role==='camera'){ goto(P.cam1); }
+      else { goto(P.mon1); }
     }
 
     function goBack(){
-      if (current === PAGES.home) return;
-      if (role === 'camera'){
-        if (current === PAGES.camConnect) return goto(PAGES.camStart);
-        if (current === PAGES.camStart)  return goto(PAGES.home);
+      if (current===P.home) return;
+      if (role==='camera'){
+        if (current===P.cam3) { goto(P.cam2,'back'); return; }
+        if (current===P.cam2) { goto(P.cam1,'back'); return; }
+        if (current===P.cam1) { goto(P.home,'back'); return; }
       } else {
-        if (current === PAGES.monAnswer) return goto(PAGES.monOffer);
-        if (current === PAGES.monFinal)  return goto(PAGES.monAnswer);
-        if (current === PAGES.monOffer)  return goto(PAGES.home);
+        if (current===P.mon3) { goto(P.mon2,'back'); return; }
+        if (current===P.mon2) { goto(P.mon1,'back'); return; }
+        if (current===P.mon1) { goto(P.home,'back'); return; }
       }
     }
 
     function goNext(){
-      if (role === 'camera'){
-        if (current === PAGES.camStart) return goto(PAGES.camConnect);
+      if (role==='camera'){
+        if (current===P.cam1) { goto(P.cam2); return; }
+        if (current===P.cam2) { goto(P.cam3); return; }
       } else {
-        if (current === PAGES.monOffer)  return goto(PAGES.monAnswer);
-        if (current === PAGES.monAnswer) return goto(PAGES.monFinal);
+        if (current===P.mon1) { goto(P.mon2); return; }
+        if (current===P.mon2) { goto(P.mon3); return; }
       }
     }
 
-    /* Status helpers */
+    /* Clipboard (modern API with fallback) */
+    async function copyText(textareaId){
+      const el = document.getElementById(textareaId);
+      const txt = el.value || '';
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(txt);
+        } else {
+          el.select();
+          document.execCommand('copy');
+        }
+        if (textareaId==='offerText') showCopied('copyOfferMsg');
+        if (textareaId==='answerText') showCopied('copyAnswerMsg');
+      } catch(e) {
+        alert('Copy failed: ' + e.message);
+      }
+    }
+
+    /* WebRTC Core */
+    const rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
+
+    let pc=null, localStream=null, monitorMicStream=null, monitorMicTrack=null, dataChannel=null;
+    let pingTimer=null;
+
+    // Save & restore (localStorage + cookie hint)
+    function saveLocal(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch{} }
+    function loadLocal(key){ try{ return JSON.parse(localStorage.getItem(key)||'null'); }catch{ return null; } }
+    function setCookie(name, value, days=3){
+      try{
+        // Avoid oversize cookies; keep short metadata only
+        if (value.length > 3800) return; // typical ~4KB cap
+        const exp = new Date(Date.now()+days*864e5).toUTCString();
+        document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; expires=${exp}; path=/; SameSite=Lax`;
+      }catch{}
+    }
+
     function info(id,m){ const el=document.getElementById(id); el.className='status info'; el.style.display='block'; el.textContent=m; }
-    function ok(id,m){   const el=document.getElementById(id); el.className='status ok';   el.style.display='block'; el.textContent=m; }
-    function err(id,m){  const el=document.getElementById(id); el.className='status err';  el.style.display='block'; el.textContent=m; }
+    function okmsg(id,m){ const el=document.getElementById(id); el.className='status ok'; el.style.display='block'; el.textContent=m; }
+    function errmsg(id,m){ const el=document.getElementById(id); el.className='status err'; el.style.display='block'; el.textContent=m; }
 
-    /* Clipboard */
-    function copyOffer(){ const t=$('#offerText'); t.select(); document.execCommand('copy'); ok('cameraStatus','Copied offer. Send to Monitor.'); }
-    function copyAnswer(){ const t=$('#answerText'); t.select(); document.execCommand('copy'); ok('monitorStatus','Copied answer. Send to Camera.'); }
-
-    /* CAMERA */
+    /* CAMERA FLOW */
     async function startCamera(){
       try{
-        info('cameraStatus','Requesting camera & mic…');
+        info('camStatus','Requesting camera & mic…');
         localStream = await navigator.mediaDevices.getUserMedia({
-          video:{facingMode:'environment', width:{ideal:1920}, height:{ideal:1080}},
-          audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}
+          video: { facingMode:'environment', width:{ideal:1920}, height:{ideal:1080} },
+          audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }
         });
-        $('#cameraVideo').srcObject = localStream;
 
+        // Prepare PC and DataChannel (offerer)
         pc = new RTCPeerConnection(rtcConfig);
         dataChannel = pc.createDataChannel('ctrl');
         dataChannel.onmessage = (ev)=>{
-          try{ const msg=JSON.parse(ev.data);
+          try{
+            const msg = JSON.parse(ev.data);
             if (msg.action==='play') playSoundOnCamera(msg.sound);
             if (msg.action==='stop') stopSoundOnCamera();
             if (msg.action==='ping') dataChannel.send(JSON.stringify({action:'ready'}));
           }catch{}
         };
 
+        // Add tracks
         localStream.getTracks().forEach(tr => pc.addTrack(tr, localStream));
 
-        pc.ontrack = (e)=>{
-          if (e.track.kind==='audio' && e.streams[0]){
-            const ra = new Audio(); ra.srcObject = e.streams[0]; ra.play().catch(()=>{});
-          }
-        };
-
+        // ICE gather → offer
         const gathered=[];
         pc.onicecandidate = ev => { if (ev.candidate) gathered.push(ev.candidate); };
         pc.onicegatheringstatechange = ()=>{
           if (pc.iceGatheringState==='complete'){
             const offerPkg = { sdp: pc.localDescription, candidates: gathered };
-            $('#offerText').value = JSON.stringify(offerPkg);
-            ok('cameraStatus','Offer ready. Copy and send to Monitor.');
-            setNextEnabled(true);
+            const txt = JSON.stringify(offerPkg);
+            document.getElementById('offerText').value = txt;
+            saveLocal('lastOffer', offerPkg);
+            setCookie('hasOffer','1');
+            okmsg('camStatus','Offer ready. Copy and send to Monitor. ');
+            setNext(true);
           }
         };
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
-      }catch(e){ err('cameraStatus','Error: '+e.message); }
+      }catch(e){ errmsg('camStatus','Error: '+e.message); }
     }
 
     async function connectCamera(){
       try{
-        const raw = $('#answerInput').value.trim();
-        if (!raw) return err('cameraStatus2','Paste the answer first.');
+        const raw = document.getElementById('answerInput').value.trim();
+        if (!raw) { errmsg('camStatus2','Paste the answer first.'); return; }
         const answer = JSON.parse(raw);
         await pc.setRemoteDescription(answer.sdp);
         if (answer.candidates) for (const c of answer.candidates) await pc.addIceCandidate(c);
-        ok('cameraStatus2','Connected. Monitor can control sounds.');
-      }catch(e){ err('cameraStatus2','Error: '+e.message); }
+        okmsg('camStatus2','Connected. Monitor can control sounds. ');
+        saveLocal('lastAnswer', answer);
+      }catch(e){ errmsg('camStatus2','Error: '+e.message); }
     }
 
-    /* MONITOR */
+    /* MONITOR FLOW */
     async function createAnswer(){
       try{
-        const raw = $('#offerInput').value.trim();
-        if (!raw) return err('monitorStatus','Paste the offer first.');
-        info('monitorStatus','Creating connection…');
-
+        const raw = document.getElementById('offerInput').value.trim();
+        if (!raw) { errmsg('monStatus','Paste the offer first.'); return; }
+        info('monStatus','Creating connection…');
         const offer = JSON.parse(raw);
+
         pc = new RTCPeerConnection(rtcConfig);
 
+        // Receive DC from camera
         pc.ondatachannel = ev => {
           dataChannel = ev.channel;
           dataChannel.onopen = startPinging;
           dataChannel.onmessage = e => {
             try{
               const msg = JSON.parse(e.data);
-              if (msg.action==='ready'){ enableSoundControls(); ok('monitorStatus','Handshake complete. Sounds ready.'); }
+              if (msg.action==='ready'){ enableSoundControls(); okmsg('monStatus','Handshake complete. Sounds ready. '); }
             }catch{}
           };
         };
 
+        // Fallback: enable if connected and DC open
         pc.onconnectionstatechange = ()=>{
           if ((pc.connectionState==='connected'||pc.connectionState==='completed') && dataChannel && dataChannel.readyState==='open'){
-            enableSoundControls(); ok('monitorStatus','Connected. Sounds enabled.'); stopPinging();
+            enableSoundControls(); okmsg('monStatus','Connected. Sounds enabled. '); stopPinging();
           }
         };
 
+        // Show camera video on monitor
         pc.ontrack = e => {
-          if (e.track.kind==='video'){ $('#monitorVideo').srcObject = e.streams[0]; $('#micBtn').style.display='flex'; }
+          if (e.track.kind==='video'){ document.getElementById('monitorVideo').srcObject = e.streams[0]; document.getElementById('micBtn').style.display='flex'; }
         };
 
+        // Add monitor mic (muted by default)
         try{
-          monitorMicStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}});
+          monitorMicStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }});
           monitorMicTrack = monitorMicStream.getAudioTracks()[0];
-          monitorMicTrack.enabled=false; pc.addTrack(monitorMicTrack, monitorMicStream);
+          monitorMicTrack.enabled = false;
+          pc.addTrack(monitorMicTrack, monitorMicStream);
         }catch{}
 
         const gathered=[];
@@ -517,9 +600,12 @@
         pc.onicegatheringstatechange = ()=>{
           if (pc.iceGatheringState==='complete'){
             const answerPkg = { sdp: pc.localDescription, candidates: gathered };
-            $('#answerText').value = JSON.stringify(answerPkg);
-            ok('monitorStatus','Answer ready. Copy and send to Camera.');
-            setNextEnabled(true);
+            const txt = JSON.stringify(answerPkg);
+            document.getElementById('answerText').value = txt;
+            saveLocal('lastAnswer', answerPkg);
+            setCookie('hasAnswer','1');
+            okmsg('monStatus','Answer ready. Copy and send to Camera. ');
+            setNext(true);
           }
         };
 
@@ -529,43 +615,60 @@
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
 
-      }catch(e){ err('monitorStatus','Error: '+e.message); }
+      }catch(e){ errmsg('monStatus','Error: '+e.message); }
     }
 
     function startPinging(){
       stopPinging();
-      const hint = $('#soundHint'); let dots=0;
-      pingTimer=setInterval(()=>{
-        if (!dataChannel||dataChannel.readyState!=='open') return;
+      const hint = document.getElementById('soundHint'); let dots=0;
+      pingTimer = setInterval(()=>{
+        if (!dataChannel || dataChannel.readyState!=='open') return;
         try{ dataChannel.send(JSON.stringify({action:'ping'})); }catch{}
-        dots=(dots+1)%4; if (hint) hint.textContent = 'Waiting for Camera handshake' + '.'.repeat(dots);
-      },800);
+        dots=(dots+1)%4; hint.textContent = 'Waiting for Camera handshake' + '.'.repeat(dots);
+      }, 800);
     }
     function stopPinging(){ if (pingTimer){ clearInterval(pingTimer); pingTimer=null; } }
 
     function enableSoundControls(){
-      const sel=$('#soundSelect'), stopBtn=$('#stopBtn');
-      if (sel) sel.disabled=false; if (stopBtn) stopBtn.disabled=false;
-      const hint=$('#soundHint'); if (hint) hint.textContent='🎵 Sounds ready';
+      document.getElementById('soundSelect').disabled=false;
+      document.getElementById('playBtn').disabled=false;
+      document.getElementById('stopBtn').disabled=false;
+      document.getElementById('soundHint').textContent = '🎵 Sounds ready';
       stopPinging();
     }
 
-    function onSoundChange(){
-      const sel=$('#soundSelect'); const val=sel.value;
-      if (!val) return; if (!dataChannel||dataChannel.readyState!=='open') return;
+    function playSelected(){
+      const sel = document.getElementById('soundSelect');
+      const val = sel.value;
+      if (!val) return;
+      if (!dataChannel || dataChannel.readyState!=='open') return;
       try{ dataChannel.send(JSON.stringify({action:'play', sound: val})); }catch{}
     }
     function sendStop(){
-      if (dataChannel&&dataChannel.readyState==='open') { try{ dataChannel.send(JSON.stringify({action:'stop'})); }catch{} }
-      const sel=$('#soundSelect'); if (sel) sel.value='';
+      if (dataChannel && dataChannel.readyState==='open'){
+        try{ dataChannel.send(JSON.stringify({action:'stop'})); }catch{}
+      }
     }
 
-    function startTalking(){ const b=$('#micBtn'); if (b){ b.classList.add('active'); b.textContent='🔴'; } if (monitorMicTrack) monitorMicTrack.enabled=true; }
-    function stopTalking(){  const b=$('#micBtn'); if (b){ b.classList.remove('active'); b.textContent='🎤'; } if (monitorMicTrack) monitorMicTrack.enabled=false; }
+    function startTalking(){
+      const b = document.getElementById('micBtn');
+      b.classList.add('active'); b.textContent='🔴';
+      if (monitorMicTrack) monitorMicTrack.enabled = true;
+    }
+    function stopTalking(){
+      const b = document.getElementById('micBtn');
+      b.classList.remove('active'); b.textContent='🎤';
+      if (monitorMicTrack) monitorMicTrack.enabled = false;
+    }
 
-    /* Camera audio engine (exclusive playback) */
-    async function ensureAudioRunning(){
-      if (!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); gain = audioCtx.createGain(); gain.gain.value=.28; gain.connect(audioCtx.destination); }
+    /* CAMERA audio engine: exclusive playback with reliable stop */
+    let audioCtx=null, gain=null, currentOsc=null, currentSrc=null, melodyTimer=null, melodyActive=false;
+
+    async function ensureAudio(){
+      if (!audioCtx){
+        audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+        gain = audioCtx.createGain(); gain.gain.value = .28; gain.connect(audioCtx.destination);
+      }
       if (audioCtx.state==='suspended'){ try{ await audioCtx.resume(); }catch{} }
     }
     function stopSoundOnCamera(){
@@ -574,7 +677,7 @@
       try{ if (currentSrc){ currentSrc.onended=null; currentSrc.stop(0); } }catch{} try{ if (currentSrc) currentSrc.disconnect(); }catch{} currentSrc=null;
     }
     async function playSoundOnCamera(kind){
-      await ensureAudioRunning(); stopSoundOnCamera();
+      await ensureAudio(); stopSoundOnCamera();
       if (kind==='whitenoise') return playWhiteNoise();
       if (kind==='rain') return playRain();
       if (kind==='lullaby1') return playMelody([261.63,261.63,392.00,392.00,440.00,440.00,392.00,349.23,349.23,329.63,329.63,293.66,293.66,261.63], .52, 620);
@@ -584,15 +687,24 @@
       melodyActive=true; let i=0;
       const step=()=>{ if (!melodyActive) return;
         const osc=audioCtx.createOscillator(); osc.type='sine'; osc.frequency.value=notes[i]; osc.connect(gain); currentOsc=osc;
-        const stopAt=audioCtx.currentTime+noteDur; osc.start(); osc.stop(stopAt);
+        const stopAt=audioCtx.currentTime + noteDur; osc.start(); osc.stop(stopAt);
         osc.onended=()=>{ if (!melodyActive) return; i=(i+1)%notes.length; melodyTimer=setTimeout(step, gapMs); };
       }; step();
     }
-    function playWhiteNoise(){ const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0); for(let i=0;i<n;i++) ch[i]=Math.random()*2-1; const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(gain); src.start(0); currentSrc=src; }
-    function playRain(){ const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0); for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*0.5; const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900; const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(lp); lp.connect(gain); src.start(0); currentSrc=src; }
+    function playWhiteNoise(){
+      const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0);
+      for(let i=0;i<n;i++) ch[i]=Math.random()*2-1;
+      const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(gain); src.start(0); currentSrc=src;
+    }
+    function playRain(){
+      const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0);
+      for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*0.5;
+      const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900;
+      const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(lp); lp.connect(gain); src.start(0); currentSrc=src;
+    }
 
-    /* Init */
-    goto(PAGES.home);
+    /* Initialize */
+    configureTop();
   </script>
 </body>
 </html>
