@@ -17,12 +17,12 @@ let monitorMicTrack = null;        // monitor talk-back track
 let dataChannel = null;            // ctrl channel
 let pingTimer = null;              // monitor handshake pinger
 
-// Web Audio state (camera phone)
+// Web Audio (camera phone)
 let audioCtx = null;
 let gain = null;
-let currentOsc = null;   // active OscillatorNode (melody note)
-let currentSrc = null;   // active AudioBufferSourceNode (noise/rain)
-let melodyTimer = null;  // timeout id for next note
+let currentOsc = null;
+let currentSrc = null;
+let melodyTimer = null;
 let melodyActive = false;
 
 const log = (...a) => console.log('[BM]', ...a);
@@ -33,12 +33,12 @@ const showPanel = id => {
   document.getElementById(id).classList.add('active');
 };
 const showInfo = (id,msg) => { const el = document.getElementById(id); el.className='status info'; el.style.display='block'; el.textContent = msg; };
-const showOk   = (id,msg) => { const el = document.getElementById(id); el.className='status success'; el.style.display='block'; el.textContent = msg; };
-const showErr  = (id,msg) => { const el = document.getElementById(id); el.className='status error'; el.style.display='block'; el.textContent = msg; };
+const showOk   = (id,msg)   => { const el = document.getElementById(id); el.className='status success'; el.style.display='block'; el.textContent = msg; };
+const showErr  = (id,msg)   => { const el = document.getElementById(id); el.className='status error'; el.style.display='block'; el.textContent = msg; };
 
 function showMonitor(){ showPanel('monitor'); }
 
-// Back to home (hard reset for simplicity)
+// Reset
 function goHome(){
   try { if (pingTimer) clearInterval(pingTimer); } catch{}
   try { if (pc) pc.close(); } catch{}
@@ -52,6 +52,48 @@ function goHome(){
 function copyOffer(){ const t=document.getElementById('offerText'); t.select(); document.execCommand('copy'); showOk('cameraStatus','Copied offer. Send to Monitor.'); }
 function copyAnswer(){ const t=document.getElementById('answerText'); t.select(); document.execCommand('copy'); showOk('monitorStatus','Copied answer. Send back to Camera.'); }
 
+// Web Share helpers (files)
+async function shareOfferFile(){
+  try{
+    const txt = document.getElementById('offerText').value.trim();
+    if (!txt){ showErr('cameraStatus','Generate the offer first.'); return; }
+    const file = new File([txt], 'offer.json', { type: 'application/json' }); // create a shareable File [web:448][web:451]
+    if (navigator.canShare && navigator.canShare({ files: [file] })){
+      await navigator.share({ files: [file], title: 'Baby Monitor Offer', text: 'Offer SDP+ICE' }); // user-gesture share [web:445][web:424]
+      showOk('cameraStatus','Shared offer file via system share.');
+    } else {
+      downloadTextFile('offer.json', txt, 'application/json'); // fallback: download locally [web:452][web:450]
+      showInfo('cameraStatus','This device cannot share files; downloaded offer.json instead.');
+    }
+  }catch(e){
+    showErr('cameraStatus','Share canceled or failed: ' + (e.message||e));
+  }
+}
+
+async function shareAnswerFile(){
+  try{
+    const txt = document.getElementById('answerText').value.trim();
+    if (!txt){ showErr('monitorStatus','Create the answer first.'); return; }
+    const file = new File([txt], 'answer.json', { type: 'application/json' }); // JSON file payload [web:448][web:451]
+    if (navigator.canShare && navigator.canShare({ files: [file] })){
+      await navigator.share({ files: [file], title: 'Baby Monitor Answer', text: 'Answer SDP+ICE' }); // share to OS sheet [web:445][web:424]
+      showOk('monitorStatus','Shared answer file via system share.');
+    } else {
+      downloadTextFile('answer.json', txt, 'application/json'); // fallback download [web:452][web:450]
+      showInfo('monitorStatus','This device cannot share files; downloaded answer.json instead.');
+    }
+  }catch(e){
+    showErr('monitorStatus','Share canceled or failed: ' + (e.message||e));
+  }
+}
+
+// Local download fallback
+function downloadTextFile(filename, content, mime){
+  const blob = new Blob([content], { type: mime || 'text/plain' }); // build Blob for file data [web:452][web:454]
+  const url = URL.createObjectURL(blob); // object URL for download [web:452][web:450]
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); // trigger and cleanup [web:450][web:452]
+}
+
 // CAMERA side
 async function initCamera(){
   showPanel('camera');
@@ -61,20 +103,17 @@ async function initCamera(){
 
 async function startCamera(){
   try {
-    // Get camera with audio; user gesture here helps unlock audio later
     localStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: {ideal:1920}, height: {ideal:1080} },
       audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }
     });
-
-    const camVideo = document.getElementById('cameraVideo');
-    camVideo.srcObject = localStream;
+    document.getElementById('cameraVideo').srcObject = localStream;
 
     cameraAudioTrack = localStream.getAudioTracks()[0] || null;
 
     pc = new RTCPeerConnection(rtcConfig);
 
-    // Create DataChannel on OFFERER before createOffer
+    // Offerer creates DC
     dataChannel = pc.createDataChannel('ctrl');
     dataChannel.onopen = () => log('Camera DC open');
     dataChannel.onclose = () => log('Camera DC close');
@@ -89,10 +128,10 @@ async function startCamera(){
       } catch(e){ log('Camera msg parse error', e); }
     };
 
-    // Add camera tracks
+    // Tracks
     localStream.getTracks().forEach(tr => pc.addTrack(tr, localStream));
 
-    // Remote audio from monitor (talk-back)
+    // Monitor talk-back to camera
     pc.ontrack = (e) => {
       if (e.track.kind === 'audio' && e.streams[0]) {
         const ra = document.getElementById('remoteAudio');
@@ -101,14 +140,14 @@ async function startCamera(){
       }
     };
 
-    // ICE gather → export offer pkg
+    // ICE → offer pkg
     const gathered = [];
     pc.onicecandidate = (ev)=>{ if (ev.candidate) gathered.push(ev.candidate); };
     pc.onicegatheringstatechange = ()=>{
       if (pc.iceGatheringState === 'complete') {
         const offerPkg = { sdp: pc.localDescription, candidates: gathered };
         document.getElementById('offerText').value = JSON.stringify(offerPkg);
-        showOk('cameraStatus','Camera ready. Copy offer and send to Monitor.');
+        showOk('cameraStatus','Camera ready. Copy/share the offer.');
       }
     };
 
@@ -143,14 +182,11 @@ async function createAnswer(){
     const offer = JSON.parse(val);
     pc = new RTCPeerConnection(rtcConfig);
 
-    // Receive camera-created DC
+    // Receive DC
     pc.ondatachannel = (ev)=>{
       dataChannel = ev.channel;
       log('Monitor received DC', dataChannel.label);
-      dataChannel.onopen = ()=> {
-        log('Monitor DC open');
-        startPinging();
-      };
+      dataChannel.onopen = ()=> { log('Monitor DC open'); startPinging(); };
       dataChannel.onmessage = (e)=>{
         try {
           const msg = JSON.parse(e.data);
@@ -165,7 +201,7 @@ async function createAnswer(){
       dataChannel.onerror = (e)=> log('Monitor DC error', e);
     };
 
-    // Fallback: enable if connected and DC open
+    // Fallback enable on full connect
     pc.onconnectionstatechange = ()=>{
       log('PC state', pc.connectionState);
       if ((pc.connectionState === 'connected' || pc.connectionState === 'completed') && dataChannel && dataChannel.readyState === 'open'){
@@ -183,7 +219,7 @@ async function createAnswer(){
       }
     };
 
-    // Add monitor mic (muted by default)
+    // Add monitor mic (muted)
     try {
       monitorMicStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
       monitorMicTrack = monitorMicStream.getAudioTracks()[0];
@@ -193,7 +229,7 @@ async function createAnswer(){
       log('Monitor mic denied', e);
     }
 
-    // ICE gather → export answer pkg
+    // ICE → answer pkg
     const gathered = [];
     pc.onicecandidate = (ev)=>{ if (ev.candidate) gathered.push(ev.candidate); };
     pc.onicegatheringstatechange = ()=>{
@@ -201,7 +237,7 @@ async function createAnswer(){
         const answerPkg = { sdp: pc.localDescription, candidates: gathered };
         document.getElementById('answerText').value = JSON.stringify(answerPkg);
         document.getElementById('monitorStep2').style.display = 'block';
-        showOk('monitorStatus','Answer ready. Copy and send to Camera.');
+        showOk('monitorStatus','Answer ready. Copy/share back to Camera.');
       }
     };
 
@@ -216,7 +252,7 @@ async function createAnswer(){
   }
 }
 
-// Persistent ping loop from monitor to camera until we get "ready"
+// Handshake pinger
 function startPinging(){
   stopPinging();
   const hint = document.getElementById('soundHint');
@@ -230,7 +266,7 @@ function startPinging(){
 }
 function stopPinging(){ if (pingTimer){ clearInterval(pingTimer); pingTimer = null; } }
 
-// Enable sound buttons (monitor UI)
+// Sounds UI
 function enableSoundButtons(){
   document.querySelectorAll('.sound-btn').forEach(b=> b.disabled = false);
   const hint = document.getElementById('soundHint');
@@ -239,7 +275,7 @@ function enableSoundButtons(){
   stopPinging();
 }
 
-// Push-to-talk (monitor → camera)
+// Push-to-talk
 function startTalking(){
   const btn = document.getElementById('micBtn');
   btn.classList.add('active'); btn.textContent = '🔴';
@@ -251,7 +287,7 @@ function stopTalking(){
   if (monitorMicTrack) monitorMicTrack.enabled = false;
 }
 
-// Monitor commands → Camera sound engine
+// Monitor → Camera sound commands
 function playSound(el, kind){
   if (!dataChannel || dataChannel.readyState !== 'open') {
     showErr('monitorStatus','Connection not ready yet.');
@@ -270,7 +306,7 @@ function stopSound(){
   showInfo('monitorStatus','Sound stopped.');
 }
 
-// CAMERA: Web Audio helpers (exclusive playback + reliable stop)
+// Camera audio engine
 async function ensureAudioRunning() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -298,7 +334,7 @@ function stopSoundOnCamera() {
 
 async function playSoundOnCamera(kind) {
   await ensureAudioRunning();
-  stopSoundOnCamera(); // guarantee exclusivity
+  stopSoundOnCamera();
 
   if (kind === 'whitenoise') return playWhiteNoise();
   if (kind === 'rain') return playRain();
