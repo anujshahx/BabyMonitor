@@ -1,7 +1,7 @@
 // ===== Configure your Firebase RTDB REST base =====
 // Replace with: const SIGNAL_BASE = '<your databaseURL>/signals';
 // Example: 'https://your-project-default-rtdb.us-central1.firebasedatabase.app/signals'
-const SIGNAL_BASE = '<PASTE_DATABASE_URL>/signals'; // no trailing slash
+const SIGNAL_BASE = 'https://baby-monitor-b862d-default-rtdb.firebaseio.com/signals'; // no trailing slash
 
 // ===== WebRTC config (STUN only) =====
 const rtcConfig = {
