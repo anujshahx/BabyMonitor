@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -26,16 +25,18 @@
       <!-- Camera -->
       <div id="camera" class="panel">
         <div id="cameraStatus" class="status info" style="display:none"></div>
-        <div class="status info">Step 1: Copy this and send to Monitor</div>
-        <textarea id="offerText" readonly onclick="this.select()"></textarea>
+
+        <div class="status info">Step 0: Pairing code for this session</div>
         <div class="row-actions">
-          <button class="btn-copy" onclick="copyOffer()">📋 Copy Offer</button>
-          <button class="btn-primary" onclick="shareOfferFile()">🔗 Share Offer file</button>
+          <input id="pairCodeCam" class="input" placeholder="Auto code…" readonly />
+          <button class="btn-secondary" onclick="regenCode()">♻️ New code</button>
         </div>
 
-        <div class="status info" style="margin-top:8px">Step 2: Paste answer from Monitor</div>
-        <textarea id="answerInput" placeholder="Paste answer here..."></textarea>
-        <button class="btn-secondary" onclick="connectCamera()">✓ Connect</button>
+        <div class="status info">Step 1: Offer is stored under this code</div>
+        <textarea id="offerText" readonly onclick="this.select()"></textarea>
+
+        <div class="status info" style="margin-top:8px">Step 2: Answer will auto‑load when Monitor connects</div>
+        <textarea id="answerInput" placeholder="(Auto when available via code)" readonly></textarea>
 
         <video id="cameraVideo" autoplay muted playsinline></video>
         <audio id="remoteAudio" autoplay></audio>
@@ -59,17 +60,18 @@
           <div id="soundHint" class="hint">Waiting for Camera handshake…</div>
         </div>
 
-        <div class="status info">Step 1: Paste offer from Camera</div>
-        <textarea id="offerInput" placeholder="Paste offer here..."></textarea>
-        <button class="btn-primary" onclick="createAnswer()">🔗 Create Answer</button>
+        <div class="status info">Step 0: Enter the pairing code from the Camera</div>
+        <div class="row-actions">
+          <input id="pairCodeMon" class="input" placeholder="Enter code from Camera" />
+          <button class="btn-primary" onclick="monitorConnectByCode()">🔗 Connect</button>
+        </div>
+
+        <div class="status info">Offer (fetched by code)</div>
+        <textarea id="offerInput" placeholder="Offer will load here…" readonly></textarea>
 
         <div id="monitorStep2" style="display:none">
-          <div class="status info" style="margin-top:8px">Step 2: Copy and send back to Camera</div>
+          <div class="status info" style="margin-top:8px">Answer (written back by code)</div>
           <textarea id="answerText" readonly onclick="this.select()"></textarea>
-          <div class="row-actions">
-            <button class="btn-copy" onclick="copyAnswer()">📋 Copy Answer</button>
-            <button class="btn-secondary" onclick="shareAnswerFile()">🔗 Share Answer file</button>
-          </div>
         </div>
 
         <div class="video-wrap">
