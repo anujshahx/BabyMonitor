@@ -247,4 +247,73 @@ function playSound(el, kind){
 
 function stopSound(){
   if (dataChannel && dataChannel.readyState==='open'){
-    try{ dataChannel.send(JSON.stringify({ action:'stop' })); }
+    try{ dataChannel.send(JSON.stringify({ action:'stop' })); }catch{}
+  }
+  document.querySelectorAll('.sound-btn').forEach(b=> b.classList.remove('active'));
+  showInfo('monitorStatus','Sound stopped.');
+} // send stop command [web:564]
+
+// ===== Push-to-talk =====
+function startTalking(){ const b=document.getElementById('micBtn'); b.classList.add('active'); b.textContent='🔴'; if (monitorMicTrack) monitorMicTrack.enabled=true; } // enable mic [web:564]
+function stopTalking(){ const b=document.getElementById('micBtn'); b.classList.remove('active'); b.textContent='🎤'; if (monitorMicTrack) monitorMicTrack.enabled=false; } // disable mic [web:564]
+
+// ===== Camera audio engine =====
+async function ensureAudioRunning(){
+  if (!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); gain = audioCtx.createGain(); gain.gain.value = .28; gain.connect(audioCtx.destination); }
+  if (audioCtx.state==='suspended'){ try{ await audioCtx.resume(); }catch{} }
+} // initialize or resume context [web:564]
+
+function stopSoundOnCamera(){
+  melodyActive=false;
+  if (melodyTimer){ try{ clearTimeout(melodyTimer); }catch{} melodyTimer=null; }
+  try{ if (currentOsc){ currentOsc.onended=null; currentOsc.stop(0); currentOsc.disconnect(); } }catch{}
+  currentOsc=null;
+  try{ if (currentSrc){ currentSrc.onended=null; currentSrc.stop(0); currentSrc.disconnect(); } }catch{}
+  currentSrc=null;
+} // stop any playing audio nodes [web:564]
+
+async function playSoundOnCamera(kind){
+  await ensureAudioRunning();
+  stopSoundOnCamera();
+  if (kind==='whitenoise') return playWhiteNoise();
+  if (kind==='rain') return playRain();
+  if (kind==='lullaby1') return playMelody([261.63,261.63,392.00,392.00,440.00,440.00,392.00,349.23,349.23,329.63,329.63,293.66,293.66,261.63], .52, 620);
+  if (kind==='lullaby2') return playMelody([329.63,293.66,293.66,329.63,293.66,261.63,293.66,329.63,329.63,293.66], .52, 620);
+} // exclusive playback by kind [web:564]
+
+function playMelody(notes, noteDur=.5, gapMs=620){
+  melodyActive = true; let i=0;
+  const step = ()=>{
+    if (!melodyActive) return;
+    const osc = audioCtx.createOscillator();
+    osc.type='sine'; osc.frequency.value = notes[i];
+    osc.connect(gain); currentOsc = osc;
+    const stopAt = audioCtx.currentTime + noteDur;
+    osc.start(); osc.stop(stopAt);
+    osc.onended = ()=>{ if (!melodyActive) return; i=(i+1)%notes.length; melodyTimer=setTimeout(step, gapMs); };
+  }; step();
+} // simple oscillator melody loop [web:564]
+
+function playWhiteNoise(){
+  const n = audioCtx.sampleRate*2, buf = audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch = buf.getChannelData(0);
+  for (let i=0;i<n;i++) ch[i] = Math.random()*2-1;
+  const src = audioCtx.createBufferSource(); src.buffer = buf; src.loop = true; src.connect(gain); src.start(0); currentSrc = src;
+} // noise source [web:564]
+
+function playRain(){
+  const n = audioCtx.sampleRate*2, buf = audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch = buf.getChannelData(0);
+  for (let i=0;i<n;i++) ch[i] = (Math.random()*2-1)*0.5;
+  const lp = audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900;
+  const src = audioCtx.createBufferSource(); src.buffer = buf; src.loop = true; src.connect(lp); lp.connect(gain); src.start(0); currentSrc = src;
+} // filtered noise [web:564]
+
+// ===== Expose functions for inline onclick (global window) =====
+window.initCamera = initCamera;
+window.showMonitor = showMonitor;
+window.goHome = goHome;
+window.regenCode = regenCode;
+window.monitorConnectByCode = monitorConnectByCode;
+window.startTalking = startTalking;
+window.stopTalking = stopTalking;
+window.playSound = playSound;
+window.stopSound = stopSound; // make handlers visible to inline onclick [web:562]
