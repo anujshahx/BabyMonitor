@@ -1,13 +1,14 @@
+// app.js
+
 // ===== Configure your Firebase RTDB REST base =====
 // Replace with: const SIGNAL_BASE = '<your databaseURL>/signals'
 // Example: 'https://your-project-default-rtdb.us-central1.firebasedatabase.app/signals'
-const SIGNAL_BASE = '<PASTE_DATABASE_URL>/signals'; // no trailing slash
+const SIGNAL_BASE = 'https://baby-monitor-b862d-default-rtdb.firebaseio.com/signals'; // no trailing slash
 
 // ===== WebRTC config (add TURN for reliability across networks) =====
 const rtcConfig = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    // Fill in your TURN to improve Android/iOS and cellular/symmetric NAT connectivity:
+    { urls: 'stun:stun.l.google.com:19302' }
     // { urls:'turn:YOUR_TURN_HOST:3478?transport=udp', username:'USER', credential:'PASS' },
     // { urls:'turn:YOUR_TURN_HOST:3478?transport=tcp', username:'USER', credential:'PASS' }
   ]
@@ -17,28 +18,46 @@ const rtcConfig = {
 let pc=null, localStream=null, monitorMicStream=null, monitorMicTrack=null, dataChannel=null, pollTimer=null;
 let audioCtx=null, gain=null, currentOsc=null, currentSrc=null, melodyTimer=null, melodyActive=false;
 
-const log = (...a)=>console.log('[BM]',...a);
+const log = function(...a){ console.log('[BM]', ...a); };
 
 // ===== UI helpers =====
-const showPanel = id => { document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active')); document.getElementById(id).classList.add('active'); };
-const showInfo = (id,msg)=>{ const el=document.getElementById(id); el.className='status info'; el.style.display='block'; el.textContent=msg; };
-const showOk = (id,msg)=>{ const el=document.getElementById(id); el.className='status success'; el.style.display='block'; el.textContent=msg; };
-const showErr = (id,msg)=>{ const el=document.getElementById(id); el.className='status error'; el.style.display='block'; el.textContent=msg; };
+const showPanel = function(id){
+  var panels = document.querySelectorAll('.panel');
+  for (var i=0;i<panels.length;i++){ panels[i].classList.remove('active'); }
+  document.getElementById(id).classList.add('active');
+};
+const showInfo = function(id,msg){ var el=document.getElementById(id); el.className='status info'; el.style.display='block'; el.textContent=msg; };
+const showOk   = function(id,msg){ var el=document.getElementById(id); el.className='status success'; el.style.display='block'; el.textContent=msg; };
+const showErr  = function(id,msg){ var el=document.getElementById(id); el.className='status error'; el.style.display='block'; el.textContent=msg; };
 
 function showMonitor(){ showPanel('monitor'); }
-function goHome(){ try{ clearInterval(pollTimer); }catch{} try{ if(pc) pc.close(); }catch{} try{ if(localStream) localStream.getTracks().forEach(t=>t.stop()); }catch{} try{ if(monitorMicStream) monitorMicStream.getTracks().forEach(t=>t.stop()); }catch{} try{ stopSoundOnCamera(); }catch{} location.reload(); }
+function goHome(){
+  try{ if (pollTimer) clearInterval(pollTimer); }catch(e){}
+  try{ if (pc) pc.close(); }catch(e){}
+  try{ if (localStream) localStream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+  try{ if (monitorMicStream) monitorMicStream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+  try{ stopSoundOnCamera(); }catch(e){}
+  location.reload();
+}
 
 // ===== Pair code helpers =====
-function genCode(len=8){ const a='23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; let s=''; for(let i=0;i<len;i++) s+=a[Math.floor(Math.random()*a.length)]; return s; }
-function currentCode(){ return document.getElementById('pairCodeCam').value || localStorage.getItem('bm_code') || ''; }
+function genCode(len){
+  len = len || 8;
+  var a='23456789ABCDEFGHJKLMNPQRSTUVWXYZ', s='';
+  for (var i=0;i<len;i++){ s += a.charAt(Math.floor(Math.random()*a.length)); }
+  return s;
+}
+function currentCode(){
+  return document.getElementById('pairCodeCam').value || localStorage.getItem('bm_code') || '';
+}
 async function regenCode(){
-  const offerTxt = document.getElementById('offerText').value.trim();
-  const code = genCode();
+  var offerTxt = document.getElementById('offerText').value.trim();
+  var code = genCode();
   document.getElementById('pairCodeCam').value = code;
-  localStorage.setItem('bm_code', code);
+  try{ localStorage.setItem('bm_code', code); }catch(e){}
   if (offerTxt) {
     try {
-      const offerPkg = JSON.parse(offerTxt);
+      var offerPkg = JSON.parse(offerTxt);
       await patchSignal(code, { "ts": { ".sv": "timestamp" } });
       await patchSignal(code, { offer: offerPkg });
       showOk('cameraStatus','Code updated and Offer stored.');
@@ -52,36 +71,42 @@ async function regenCode(){
 
 // ===== Firebase RTDB REST helpers (.json endpoints) =====
 async function putSignal(code, payload){
-  const url = `${SIGNAL_BASE}/${encodeURIComponent(code)}.json`;
-  const res = await fetch(url, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  if (!res.ok) throw new Error(`PUT ${res.status}`);
+  var url = SIGNAL_BASE + '/' + encodeURIComponent(code) + '.json';
+  var res = await fetch(url, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  if (!res.ok) throw new Error('PUT ' + res.status);
   return res.json();
 }
 async function patchSignal(code, partial){
-  const url = `${SIGNAL_BASE}/${encodeURIComponent(code)}.json`;
-  const res = await fetch(url, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(partial) });
-  if (!res.ok) throw new Error(`PATCH ${res.status}`);
+  var url = SIGNAL_BASE + '/' + encodeURIComponent(code) + '.json';
+  var res = await fetch(url, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(partial) });
+  if (!res.ok) throw new Error('PATCH ' + res.status);
   return res.json();
 }
-async function getSignal(code, path=''){
-  const url = `${SIGNAL_BASE}/${encodeURIComponent(code)}${path}.json?ts=${Date.now()}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`GET ${res.status}`);
+async function getSignal(code, path){
+  path = path || '';
+  var url = SIGNAL_BASE + '/' + encodeURIComponent(code) + path + '.json?ts=' + Date.now();
+  var res = await fetch(url);
+  if (!res.ok) throw new Error('GET ' + res.status);
   return res.json();
 }
 
 // ===== Codec preference (prefer H.264 for Safari/interop) =====
 function preferH264(pc){
   try{
-    const recCaps = RTCRtpReceiver.getCapabilities('video')?.codecs || [];
-    const h264 = recCaps.filter(c => /H264/i.test(c.mimeType));
-    const other = recCaps.filter(c => !/H264/i.test(c.mimeType));
-    const sorted = [...h264, ...other];
-    pc.getTransceivers().forEach(t=>{
-      const kind = t.receiver.track?.kind || t.sender.track?.kind;
-      if (kind === 'video') t.setCodecPreferences(sorted);
-    });
-  }catch{}
+    var getCaps = RTCRtpReceiver.getCapabilities ? RTCRtpReceiver.getCapabilities('video') : null;
+    var recCaps = (getCaps && getCaps.codecs) ? getCaps.codecs : [];
+    var h264 = [], other = [];
+    for (var i=0;i<recCaps.length;i++){
+      if (/H264/i.test(recCaps[i].mimeType)) h264.push(recCaps[i]); else other.push(recCaps[i]);
+    }
+    var sorted = h264.concat(other);
+    var transceivers = pc.getTransceivers ? pc.getTransceivers() : [];
+    for (var t=0;t<transceivers.length;t++){
+      var tr = transceivers[t];
+      var kind = (tr.receiver && tr.receiver.track && tr.receiver.track.kind) || (tr.sender && tr.sender.track && tr.sender.track.kind);
+      if (kind === 'video' && tr.setCodecPreferences) tr.setCodecPreferences(sorted);
+    }
+  }catch(e){}
 }
 
 // ===== CAMERA =====
@@ -89,12 +114,11 @@ async function initCamera(){
   showPanel('camera');
   showInfo('cameraStatus','Starting camera…');
   await startCameraAndOffer(); // code will be generated after Offer is ready
-  // Polling starts with the generated code after Offer write completes
 }
 
 async function startCameraAndOffer(){
   try{
-    const stream = await navigator.mediaDevices.getUserMedia({
+    var stream = await navigator.mediaDevices.getUserMedia({
       video:{ facingMode:'environment', width:{ideal:1920}, height:{ideal:1080} },
       audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true }
     });
@@ -104,40 +128,42 @@ async function startCameraAndOffer(){
     pc = new RTCPeerConnection(rtcConfig);
 
     // Add tracks before preferring codecs so transceivers exist
-    localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+    localStream.getTracks().forEach(function(t){ pc.addTrack(t, localStream); });
     // Prefer H.264 before createOffer
     preferH264(pc);
 
     dataChannel = pc.createDataChannel('ctrl');
-    dataChannel.onmessage = ev => {
+    dataChannel.onmessage = function(ev){
       try{
-        const msg = JSON.parse(ev.data);
+        var msg = JSON.parse(ev.data);
         if (msg.action==='play') playSoundOnCamera(msg.sound);
         if (msg.action==='stop') stopSoundOnCamera();
         if (msg.action==='ping') dataChannel.send(JSON.stringify({action:'ready'}));
-      }catch{}
+      }catch(e){}
     };
 
-    pc.ontrack = e=>{
-      if (e.track.kind==='audio' && e.streams[0]){
-        const ra = document.getElementById('remoteAudio');
-        ra.srcObject = e.streams[0];
-        ra.play().catch(()=>{});
-      }
+    pc.ontrack = function(e){
+      try{
+        if (e.track.kind==='audio' && e.streams[0]){
+          var ra = document.getElementById('remoteAudio');
+          ra.srcObject = e.streams[0];
+          ra.play().catch(function(){});
+        }
+      }catch(err){}
     };
 
-    const gathered=[];
-    pc.onicecandidate = e=>{ if (e.candidate) gathered.push(e.candidate); };
-    pc.onicegatheringstatechange = async ()=>{
+    var gathered=[];
+    pc.onicecandidate = function(e){ if (e.candidate) gathered.push(e.candidate); };
+    pc.onicegatheringstatechange = async function(){
       if (pc.iceGatheringState==='complete'){
-        const offerPkg = { sdp: pc.localDescription, candidates: gathered };
+        var offerPkg = { sdp: pc.localDescription, candidates: gathered };
         document.getElementById('offerText').value = JSON.stringify(offerPkg);
         // Only now mint the code, then write to RTDB
-        let code = currentCode();
+        var code = currentCode();
         if (!code) {
           code = genCode();
           document.getElementById('pairCodeCam').value = code;
-          localStorage.setItem('bm_code', code);
+          try{ localStorage.setItem('bm_code', code); }catch(e){}
         }
         try{
           await patchSignal(code, { "ts": { ".sv": "timestamp" } });
@@ -151,7 +177,7 @@ async function startCameraAndOffer(){
       }
     };
 
-    const offer = await pc.createOffer();
+    var offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
   }catch(err){
     showErr('cameraStatus','Error: ' + err.message);
@@ -159,14 +185,14 @@ async function startCameraAndOffer(){
 }
 
 function startAnswerPolling(code){
-  try{ clearInterval(pollTimer); }catch{}
-  pollTimer = setInterval(async ()=>{
+  try{ if (pollTimer) clearInterval(pollTimer); }catch(e){}
+  pollTimer = setInterval(async function(){
     try{
-      const ans = await getSignal(code, '/answer');
+      var ans = await getSignal(code, '/answer');
       if (!ans) return;
       document.getElementById('answerInput').value = JSON.stringify(ans);
       await pc.setRemoteDescription(ans.sdp);
-      if (ans.candidates) for (const c of ans.candidates){ await pc.addIceCandidate(c); }
+      if (ans.candidates) for (var i=0;i<ans.candidates.length;i++){ await pc.addIceCandidate(ans.candidates[i]); }
       showOk('cameraStatus','Connected. Monitor can control sounds.');
       clearInterval(pollTimer);
     }catch(e){
@@ -177,11 +203,11 @@ function startAnswerPolling(code){
 
 // ===== MONITOR =====
 async function monitorConnectByCode(){
-  const code = (document.getElementById('pairCodeMon').value||'').trim();
+  var code = (document.getElementById('pairCodeMon').value||'').trim();
   if (!code) return showErr('monitorStatus','Enter the code.');
   try{
     showInfo('monitorStatus','Fetching offer by code…');
-    const offer = await getSignal(code, '/offer');
+    var offer = await getSignal(code, '/offer');
     if (!offer) return showErr('monitorStatus','No offer found for this code.');
     document.getElementById('offerInput').value = JSON.stringify(offer);
     await createAnswerFromOffer(code, offer);
@@ -198,37 +224,38 @@ async function createAnswerFromOffer(code, offer){
     try{
       monitorMicStream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
       monitorMicTrack = monitorMicStream.getAudioTracks()[0];
-      monitorMicTrack.enabled = false;
-      pc.addTrack(monitorMicTrack, monitorMicStream);
-    }catch{}
+      if (monitorMicTrack) monitorMicTrack.enabled = false;
+      if (monitorMicStream && monitorMicTrack) pc.addTrack(monitorMicTrack, monitorMicStream);
+    }catch(e){}
 
-    pc.ondatachannel = ev=>{
+    pc.ondatachannel = function(ev){
       dataChannel = ev.channel;
-      dataChannel.onopen = ()=> startPinging();
-      dataChannel.onmessage = e=>{
+      dataChannel.onopen = function(){ startPinging(); };
+      dataChannel.onmessage = function(e){
         try{
-          const msg = JSON.parse(e.data);
+          var msg = JSON.parse(e.data);
           if (msg.action==='ready'){
             enableSoundButtons();
             showOk('monitorStatus','Handshake complete. Sounds ready.');
           }
-        }catch{}
+        }catch(err){}
       };
     };
 
-    pc.onconnectionstatechange = ()=>{
-      if ((pc.connectionState==='connected'||pc.connectionState==='completed') && dataChannel?.readyState==='open'){
+    pc.onconnectionstatechange = function(){
+      if ((pc.connectionState==='connected' || pc.connectionState==='completed') &&
+          dataChannel && dataChannel.readyState==='open'){
         enableSoundButtons();
         showOk('monitorStatus','Connected. Sounds enabled.');
         stopPinging();
       }
     };
 
-    pc.ontrack = e=>{
+    pc.ontrack = function(e){
       if (e.track.kind==='video'){
-        const mv = document.getElementById('monitorVideo');
+        var mv = document.getElementById('monitorVideo');
         mv.srcObject = e.streams[0];
-        mv.play().catch(()=>{}); // iOS may require a tap to start audible playback
+        mv.play().catch(function(){}); // iOS may require a tap to start audio
         document.getElementById('micBtn').style.display='flex';
       }
     };
@@ -237,13 +264,13 @@ async function createAnswerFromOffer(code, offer){
     preferH264(pc);
 
     await pc.setRemoteDescription(offer.sdp);
-    if (offer.candidates) for (const c of offer.candidates){ await pc.addIceCandidate(c); }
+    if (offer.candidates) for (var i=0;i<offer.candidates.length;i++){ await pc.addIceCandidate(offer.candidates[i]); }
 
-    const gathered=[];
-    pc.onicecandidate = e=>{ if (e.candidate) gathered.push(e.candidate); };
-    pc.onicegatheringstatechange = async ()=>{
+    var gathered=[];
+    pc.onicecandidate = function(e){ if (e.candidate) gathered.push(e.candidate); };
+    pc.onicegatheringstatechange = async function(){
       if (pc.iceGatheringState==='complete'){
-        const answerPkg = { sdp: pc.localDescription, candidates: gathered };
+        var answerPkg = { sdp: pc.localDescription, candidates: gathered };
         document.getElementById('answerText').value = JSON.stringify(answerPkg);
         document.getElementById('monitorStep2').style.display = 'block';
         try{
@@ -255,7 +282,7 @@ async function createAnswerFromOffer(code, offer){
       }
     };
 
-    const answer = await pc.createAnswer();
+    var answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
   }catch(e){
     showErr('monitorStatus','Answer error: ' + e.message);
@@ -266,49 +293,104 @@ async function createAnswerFromOffer(code, offer){
 let pingTimer=null;
 function startPinging(){
   stopPinging();
-  const hint=document.getElementById('soundHint'); let dots=0;
-  pingTimer=setInterval(()=>{
-    if (dataChannel?.readyState!=='open') return;
-    try{ dataChannel.send(JSON.stringify({action:'ping'})); }catch{}
-    dots=(dots+1)%4; hint.textContent='Waiting for Camera handshake' + '.'.repeat(dots);
+  var hint=document.getElementById('soundHint'); var dots=0;
+  pingTimer=setInterval(function(){
+    if (!dataChannel || dataChannel.readyState!=='open') return;
+    try{ dataChannel.send(JSON.stringify({action:'ping'})); }catch(e){}
+    dots=(dots+1)%4; hint.textContent='Waiting for Camera handshake' + Array(dots+1).join('.');
   }, 800);
 }
 function stopPinging(){ if (pingTimer){ clearInterval(pingTimer); pingTimer=null; } }
 
 // ===== Sounds control =====
 function enableSoundButtons(){
-  document.querySelectorAll('.sound-btn').forEach(b=> b.disabled=false);
-  const hint=document.getElementById('soundHint');
+  var btns = document.querySelectorAll('.sound-btn');
+  for (var i=0;i<btns.length;i++){ btns[i].disabled=false; }
+  var hint=document.getElementById('soundHint');
   hint.textContent='🎵 Sounds ready';
   hint.style.opacity='1';
   stopPinging();
 }
 function playSound(el, kind){
   if (!dataChannel || dataChannel.readyState!=='open'){ showErr('monitorStatus','Connection not ready yet.'); return; }
-  document.querySelectorAll('.sound-btn:not(.stop)').forEach(b=> b.classList.remove('active'));
+  var btns = document.querySelectorAll('.sound-btn:not(.stop)');
+  for (var i=0;i<btns.length;i++){ btns[i].classList.remove('active'); }
   el.classList.add('active');
-  try{ dataChannel.send(JSON.stringify({ action:'play', sound: kind })); }catch{}
-  showOk('monitorStatus','Playing ' + el.textContent.replaceAll('\n',' ').trim());
+  try{ dataChannel.send(JSON.stringify({ action:'play', sound: kind })); }catch(e){}
+  showOk('monitorStatus','Playing ' + el.textContent.replace(/\n/g,' ').trim());
 }
 function stopSound(){
   if (dataChannel && dataChannel.readyState==='open'){
-    try{ dataChannel.send(JSON.stringify({ action:'stop' })); }catch{}
+    try{ dataChannel.send(JSON.stringify({ action:'stop' })); }catch(e){}
   }
-  document.querySelectorAll('.sound-btn').forEach(b=> b.classList.remove('active'));
+  var btns = document.querySelectorAll('.sound-btn');
+  for (var i=0;i<btns.length;i++){ btns[i].classList.remove('active'); }
   showInfo('monitorStatus','Sound stopped.');
 }
 
 // ===== Push-to-talk =====
-function startTalking(){ const b=document.getElementById('micBtn'); b.classList.add('active'); b.textContent='🔴'; if (monitorMicTrack) monitorMicTrack.enabled=true; }
-function stopTalking(){ const b=document.getElementById('micBtn'); b.classList.remove('active'); b.textContent='🎤'; if (monitorMicTrack) monitorMicTrack.enabled=false; }
+function startTalking(){ var b=document.getElementById('micBtn'); b.classList.add('active'); b.textContent='🔴'; if (monitorMicTrack) monitorMicTrack.enabled=true; }
+function stopTalking(){ var b=document.getElementById('micBtn'); b.classList.remove('active'); b.textContent='🎤'; if (monitorMicTrack) monitorMicTrack.enabled=false; }
 
 // ===== Camera audio engine =====
-async function ensureAudioRunning(){ if (!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); gain = audioCtx.createGain(); gain.gain.value=.28; gain.connect(audioCtx.destination); } if (audioCtx.state==='suspended'){ try{ await audioCtx.resume(); }catch{} } }
-function stopSoundOnCamera(){ melodyActive=false; if (melodyTimer){ try{ clearTimeout(melodyTimer); }catch{} melodyTimer=null; try{ if (currentOsc){ currentOsc.onended=null; currentOsc.stop(0); currentOsc.disconnect(); } }catch{} currentOsc=null; try{ if (currentSrc){ currentSrc.onended=null; currentSrc.stop(0); currentSrc.disconnect(); } }catch{} currentSrc=null; }
-async function playSoundOnCamera(kind){ await ensureAudioRunning(); stopSoundOnCamera(); if (kind==='whitenoise') return playWhiteNoise(); if (kind==='rain') return playRain(); if (kind==='lullaby1') return playMelody([261.63,261.63,392.00,392.00,440.00,440.00,392.00,349.23,349.23,329.63,329.63,293.66,293.66,261.63], .52, 620); if (kind==='lullaby2') return playMelody([329.63,293.66,293.66,329.63,293.66,261.63,293.66,329.63,329.63,293.66], .52, 620); }
-function playMelody(notes, noteDur=.5, gapMs=620){ melodyActive=true; let i=0; const step=()=>{ if (!melodyActive) return; const osc=audioCtx.createOscillator(); osc.type='sine'; osc.frequency.value=notes[i]; osc.connect(gain); currentOsc=osc; const stopAt=audioCtx.currentTime+noteDur; osc.start(); osc.stop(stopAt); osc.onended=()=>{ if (!melodyActive) return; i=(i+1)%notes.length; melodyTimer=setTimeout(step,gapMs); }; }; step(); }
-function playWhiteNoise(){ const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0); for(let i=0;i<n;i++) ch[i]=Math.random()*2-1; const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(gain); src.start(0); currentSrc=src; }
-function playRain(){ const n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0); for(let i=0;i<n;i++) ch[i]=(Math.random()*2-1)*0.5; const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900; const src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(lp); lp.connect(gain); src.start(0); currentSrc=src; }
+async function ensureAudioRunning(){
+  if (!audioCtx){
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    gain = audioCtx.createGain();
+    gain.gain.value=.28;
+    gain.connect(audioCtx.destination);
+  }
+  if (audioCtx.state==='suspended'){
+    try{ await audioCtx.resume(); }catch(e){}
+  }
+}
+function stopSoundOnCamera(){
+  melodyActive=false;
+  try{ if (melodyTimer) clearTimeout(melodyTimer); }catch(e){} melodyTimer=null;
+  try{ if (currentOsc){ currentOsc.onended=null; currentOsc.stop(0); currentOsc.disconnect(); } }catch(e){}
+  currentOsc=null;
+  try{ if (currentSrc){ currentSrc.onended=null; currentSrc.stop(0); currentSrc.disconnect(); } }catch(e){}
+  currentSrc=null;
+}
+async function playSoundOnCamera(kind){
+  await ensureAudioRunning();
+  stopSoundOnCamera();
+  if (kind==='whitenoise') return playWhiteNoise();
+  if (kind==='rain') return playRain();
+  if (kind==='lullaby1') return playMelody([261.63,261.63,392.00,392.00,440.00,440.00,392.00,349.23,349.23,329.63,329.63,293.66,293.66,261.63], .52, 620);
+  if (kind==='lullaby2') return playMelody([329.63,293.66,293.66,329.63,293.66,261.63,293.66,329.63,329.63,293.66], .52, 620);
+}
+function playMelody(notes, noteDur, gapMs){
+  noteDur = noteDur || .5; gapMs = gapMs || 620;
+  melodyActive=true; var i=0;
+  function step(){
+    if (!melodyActive) return;
+    var osc = audioCtx.createOscillator();
+    osc.type='sine';
+    osc.frequency.value = notes[i];
+    osc.connect(gain);
+    currentOsc = osc;
+    var stopAt = audioCtx.currentTime + noteDur;
+    osc.start(); osc.stop(stopAt);
+    osc.onended = function(){
+      if (!melodyActive) return;
+      i = (i+1) % notes.length;
+      melodyTimer = setTimeout(step, gapMs);
+    };
+  }
+  step();
+}
+function playWhiteNoise(){
+  var n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0);
+  for (var i=0;i<n;i++){ ch[i]=Math.random()*2-1; }
+  var src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(gain); src.start(0); currentSrc=src;
+}
+function playRain(){
+  var n=audioCtx.sampleRate*2, buf=audioCtx.createBuffer(1,n,audioCtx.sampleRate), ch=buf.getChannelData(0);
+  for (var i=0;i<n;i++){ ch[i]=(Math.random()*2-1)*0.5; }
+  var lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900;
+  var src=audioCtx.createBufferSource(); src.buffer=buf; src.loop=true; src.connect(lp); lp.connect(gain); src.start(0); currentSrc=src;
+}
 
 // ===== Expose functions for inline onclick =====
 window.initCamera = initCamera;
