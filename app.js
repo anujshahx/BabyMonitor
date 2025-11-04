@@ -185,21 +185,21 @@ async function startCameraAndOffer(){
 }
 
 function startAnswerPolling(code){
-  try{ if (pollTimer) clearInterval(pollTimer); }catch(e){}
-  pollTimer = setInterval(async function(){
+  try{ clearInterval(pollTimer); }catch{}
+  pollTimer = setInterval(async ()=>{
     try{
-      var ans = await getSignal(code, '/answer');
+      const ans = await getSignal(code, '/answer');
       if (!ans) return;
       document.getElementById('answerInput').value = JSON.stringify(ans);
       await pc.setRemoteDescription(ans.sdp);
-      if (ans.candidates) for (var i=0;i<ans.candidates.length;i++){ await pc.addIceCandidate(ans.candidates[i]); }
+      if (ans.candidates) for (const c of ans.candidates){ await pc.addIceCandidate(c); }
       showOk('cameraStatus','Connected. Monitor can control sounds.');
       clearInterval(pollTimer);
     }catch(e){
-      // ignore transient errors
+      // ignore transient errors while waiting
     }
   }, 1200);
-}
+} // poll answer until present, then finalize [web:508]
 
 // ===== MONITOR =====
 async function monitorConnectByCode(){
