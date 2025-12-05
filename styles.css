@@ -170,6 +170,12 @@ video {
   background: linear-gradient(135deg,#a8edea,#fed6e3);
 }
 
+.sound-title {
+  font-weight: 800;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
 .sound-grid {
   display: grid;
   grid-template-columns: repeat(2,1fr);
@@ -210,6 +216,13 @@ video {
   color: #374151;
   opacity: .8;
   margin-top: 8px;
+}
+
+.room-code-display {
+  font-size: 28px;
+  font-weight: 800;
+  text-align: center;
+  margin: 10px 0;
 }
 
 @media (max-width: 480px) {
