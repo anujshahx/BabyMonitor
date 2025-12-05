@@ -51,19 +51,19 @@ function showPanel(id) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
-function showInfo = (id,msg) => {
+function showInfo(id,msg) {
   const el = document.getElementById(id);
   el.className='status info';
   el.style.display='block';
   el.textContent = msg;
 };
-function showOk   = (id,msg) => {
+function showOk(id,msg) {
   const el = document.getElementById(id);
   el.className='status success';
   el.style.display='block';
   el.textContent = msg;
 };
-function showErr  = (id,msg) => {
+function showErr(id,msg) {
   const el = document.getElementById(id);
   el.className='status error';
   el.style.display='block';
