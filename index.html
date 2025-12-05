@@ -4,8 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Baby Monitor</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script defer src="app.js"></script>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="container">
@@ -26,17 +25,13 @@
       <div id="camera" class="panel">
         <div id="cameraStatus" class="status info" style="display:none"></div>
 
-        <div class="status info">Step 0: Pairing code for this session</div>
-        <div class="row-actions">
-          <input id="pairCodeCam" class="input" placeholder="Will be generated after Offer" readonly />
-          <button class="btn-secondary" onclick="regenCode()">♻️ New code</button>
+        <div class="status info">Step 1: Share this code with Monitor</div>
+        <div id="roomCodeDisplay"
+             style="font-size:28px;font-weight:800;text-align:center;margin:10px 0;"></div>
+
+        <div class="status info" style="margin-top:8px">
+          Step 2: Wait for Monitor to join using this code
         </div>
-
-        <div class="status info">Step 1: Offer is stored under this code</div>
-        <textarea id="offerText" readonly onclick="this.select()"></textarea>
-
-        <div class="status info" style="margin-top:8px">Step 2: Answer will auto‑load when Monitor connects</div>
-        <textarea id="answerInput" placeholder="(Auto when available via code)" readonly></textarea>
 
         <video id="cameraVideo" autoplay muted playsinline></video>
         <audio id="remoteAudio" autoplay></audio>
@@ -60,18 +55,15 @@
           <div id="soundHint" class="hint">Waiting for Camera handshake…</div>
         </div>
 
-        <div class="status info">Step 0: Enter the pairing code from the Camera</div>
-        <div class="row-actions">
-          <input id="pairCodeMon" class="input" placeholder="Enter code from Camera" />
-          <button class="btn-primary" onclick="monitorConnectByCode()">🔗 Connect</button>
-        </div>
-
-        <div class="status info">Offer (fetched by code)</div>
-        <textarea id="offerInput" placeholder="Offer will load here…" readonly></textarea>
+        <div class="status info">Step 1: Enter code from Camera</div>
+        <input id="roomCodeInput"
+               placeholder="Enter code (e.g. 4832)">
+        <button class="btn-primary" onclick="joinRoom()">🔗 Join</button>
 
         <div id="monitorStep2" style="display:none">
-          <div class="status info" style="margin-top:8px">Answer (written back by code)</div>
-          <textarea id="answerText" readonly onclick="this.select()"></textarea>
+          <div class="status info" style="margin-top:8px">
+            Step 2: Connected – you can now watch and control sounds
+          </div>
         </div>
 
         <div class="video-wrap">
@@ -85,5 +77,12 @@
       </div>
     </div>
   </div>
+
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <!-- App logic -->
+  <script src="app.js"></script>
 </body>
 </html>
