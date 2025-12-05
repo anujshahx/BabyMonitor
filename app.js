@@ -2,7 +2,7 @@
 const firebaseConfig = {
   apiKey: "AIzaSyBjtdeKEtw_FpcMC6Ab4uE2V9pZLAxr0dQ",
   authDomain: "baby-monitor-b862d.firebaseapp.com",
-  databaseURL: "https://baby-monitor-b862d-default-rtdb.firebaseio.com",
+  databaseURL: "https://baby-monitor-b862d-default-rtdb.firebaseio.com/",
   projectId: "baby-monitor-b862d",
   storageBucket: "baby-monitor-b862d.firebasestorage.app",
   messagingSenderId: "802534707567",
