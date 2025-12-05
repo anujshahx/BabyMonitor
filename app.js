@@ -22,7 +22,6 @@ auth.onAuthStateChanged(user => {
   console.log('DEBUG: auth state', user ? user.uid : null);
 });
 
-
 // STUN only; add TURN for internet NAT traversal if needed
 const rtcConfig = {
   iceServers: [
@@ -56,33 +55,33 @@ function showPanel(id) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
-function showInfo(id,msg) {
+function showInfo(id, msg) {
   const el = document.getElementById(id);
-  el.className='status info';
-  el.style.display='block';
+  el.className = 'status info';
+  el.style.display = 'block';
   el.textContent = msg;
 }
-function showOk(id,msg) {
+function showOk(id, msg) {
   const el = document.getElementById(id);
-  el.className='status success';
-  el.style.display='block';
+  el.className = 'status success';
+  el.style.display = 'block';
   el.textContent = msg;
 }
-function showErr(id,msg) {
+function showErr(id, msg) {
   const el = document.getElementById(id);
-  el.className='status error';
-  el.style.display='block';
+  el.className = 'status error';
+  el.style.display = 'block';
   el.textContent = msg;
 }
 
-function showMonitor(){ showPanel('monitor'); }
+function showMonitor() { showPanel('monitor'); }
 
-function goHome(){
-  try { if (pingTimer) clearInterval(pingTimer); } catch{}
-  try { if (pc) pc.close(); } catch{}
-  try { if (localStream) localStream.getTracks().forEach(t=>t.stop()); } catch{}
-  try { if (monitorMicStream) monitorMicStream.getTracks().forEach(t=>t.stop()); } catch{}
-  try { stopSoundOnCamera(); } catch{}
+function goHome() {
+  try { if (pingTimer) clearInterval(pingTimer); } catch {}
+  try { if (pc) pc.close(); } catch {}
+  try { if (localStream) localStream.getTracks().forEach(t => t.stop()); } catch {}
+  try { if (monitorMicStream) monitorMicStream.getTracks().forEach(t => t.stop()); } catch {}
+  try { stopSoundOnCamera(); } catch {}
   if (currentRoomCode) {
     try { db.ref('rooms/' + currentRoomCode).remove(); } catch {}
   }
@@ -95,17 +94,17 @@ function generateRoomCode() {
 }
 
 // CAMERA side
-async function initCamera(){
+async function initCamera() {
   showPanel('camera');
-  showInfo('cameraStatus','Starting camera…');
+  showInfo('cameraStatus', 'Starting camera…');
   await startCamera();
 }
 
-async function startCamera(){
+async function startCamera() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: {ideal:1920}, height: {ideal:1080} },
-      audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     });
 
     const camVideo = document.getElementById('cameraVideo');
@@ -126,8 +125,8 @@ async function startCamera(){
         log('Camera got', msg);
         if (msg.action === 'play') playSoundOnCamera(msg.sound);
         if (msg.action === 'stop') stopSoundOnCamera();
-        if (msg.action === 'ping') dataChannel.send(JSON.stringify({action:'ready'}));
-      } catch(e){ log('Camera msg parse error', e); }
+        if (msg.action === 'ping') dataChannel.send(JSON.stringify({ action: 'ready' }));
+      } catch (e) { log('Camera msg parse error', e); }
     };
 
     // Add camera tracks
@@ -138,43 +137,52 @@ async function startCamera(){
       if (e.track.kind === 'audio' && e.streams[0]) {
         const ra = document.getElementById('remoteAudio');
         ra.srcObject = e.streams[0];
-        ra.play().catch(()=>{});
+        ra.play().catch(() => {});
       }
     };
 
     // ICE gather → export offer pkg via Firebase
     const gathered = [];
-    pc.onicecandidate = (ev)=>{ if (ev.candidate) gathered.push(ev.candidate); };
+    pc.onicecandidate = (ev) => { if (ev.candidate) gathered.push(ev.candidate); };
     pc.onicegatheringstatechange = () => {
       if (pc.iceGatheringState === 'complete') {
-        const offerPkg = { sdp: pc.localDescription, candidates: gathered };
+        // Convert WebRTC objects to plain JSON for Firebase
+        const offerPkg = {
+          sdp: {
+            type: pc.localDescription.type,
+            sdp: pc.localDescription.sdp
+          },
+          candidates: gathered.map(c => c.toJSON())
+        };
+
         const roomCode = generateRoomCode();
         currentRoomCode = roomCode;
-        
-        console.log('DEBUG: writing offer for room', roomCode, offerPkg);
-        
+
+        console.log('DEBUG: writing offer for room', roomCode, JSON.stringify(offerPkg));
+
         db.ref('rooms/' + roomCode + '/offer').set(offerPkg)
           .then(() => {
             console.log('DEBUG: offer write OK for room', roomCode);
             document.getElementById('roomCodeDisplay').textContent = roomCode;
-            showOk('cameraStatus','Camera ready. Share code: ' + roomCode);
-            
+            showOk('cameraStatus', 'Camera ready. Share code: ' + roomCode);
+
+            // Listen for answer
             db.ref('rooms/' + roomCode + '/answer').on('value', async snap => {
               const answer = snap.val();
               if (!answer || !pc || pc.signalingState === 'stable') return;
               try {
                 await pc.setRemoteDescription(answer.sdp);
                 if (answer.candidates)
-                  for (const c of answer.candidates){ await pc.addIceCandidate(c); }
-                showOk('cameraStatus','Connected to Monitor via room ' + roomCode);
-              } catch(err){
-                showErr('cameraStatus','Error applying answer: '+ err.message);
+                  for (const c of answer.candidates) { await pc.addIceCandidate(c); }
+                showOk('cameraStatus', 'Connected to Monitor via room ' + roomCode);
+              } catch (err) {
+                showErr('cameraStatus', 'Error applying answer: ' + err.message);
               }
             });
           })
           .catch(err => {
             console.error('DEBUG: offer write FAILED', err);
-            showErr('cameraStatus','Firebase error: ' + err.message);
+            showErr('cameraStatus', 'Firebase error: ' + err.message);
           });
       }
     };
@@ -182,8 +190,8 @@ async function startCamera(){
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-  } catch(err){
-    showErr('cameraStatus','Error: '+ err.message);
+  } catch (err) {
+    showErr('cameraStatus', 'Error: ' + err.message);
   }
 }
 
@@ -191,64 +199,64 @@ async function startCamera(){
 async function joinRoom() {
   const code = document.getElementById('roomCodeInput').value.trim();
   if (!code) {
-    showErr('monitorStatus','Enter the room code first.');
+    showErr('monitorStatus', 'Enter the room code first.');
     return;
   }
-  showInfo('monitorStatus','Looking up room ' + code + '…');
+  showInfo('monitorStatus', 'Looking up room ' + code + '…');
   currentRoomCode = code;
 
   try {
     const snap = await db.ref('rooms/' + code + '/offer').get();
     if (!snap.exists()) {
-      showErr('monitorStatus','No offer found for this code.');
+      showErr('monitorStatus', 'No offer found for this code.');
       return;
     }
     const offer = snap.val();
     await createAnswerFromOffer(offer, code);
   } catch (err) {
-    showErr('monitorStatus','Firebase error: ' + err.message);
+    showErr('monitorStatus', 'Firebase error: ' + err.message);
   }
 }
 
-async function createAnswerFromOffer(offer, roomCode){
+async function createAnswerFromOffer(offer, roomCode) {
   try {
     pc = new RTCPeerConnection(rtcConfig);
 
     // Receive camera-created DC
-    pc.ondatachannel = (ev)=>{
+    pc.ondatachannel = (ev) => {
       dataChannel = ev.channel;
       log('Monitor received DC', dataChannel.label);
-      dataChannel.onopen = ()=> {
+      dataChannel.onopen = () => {
         log('Monitor DC open');
         startPinging();
       };
-      dataChannel.onmessage = (e)=>{
+      dataChannel.onmessage = (e) => {
         try {
           const msg = JSON.parse(e.data);
           log('Monitor got', msg);
           if (msg.action === 'ready') {
             enableSoundButtons();
-            showOk('monitorStatus','Handshake complete. Sounds ready.');
+            showOk('monitorStatus', 'Handshake complete. Sounds ready.');
           }
-        } catch(err){ log('Monitor msg parse err', err); }
+        } catch (err) { log('Monitor msg parse err', err); }
       };
-      dataChannel.onclose = ()=> log('Monitor DC close');
-      dataChannel.onerror = (e)=> log('Monitor DC error', e);
+      dataChannel.onclose = () => log('Monitor DC close');
+      dataChannel.onerror = (e) => log('Monitor DC error', e);
     };
 
     // Fallback: enable if connected and DC open
-    pc.onconnectionstatechange = ()=>{
+    pc.onconnectionstatechange = () => {
       log('PC state', pc.connectionState);
       if ((pc.connectionState === 'connected' || pc.connectionState === 'completed') &&
-          dataChannel && dataChannel.readyState === 'open'){
+          dataChannel && dataChannel.readyState === 'open') {
         enableSoundButtons();
-        showOk('monitorStatus','Connected. Sounds enabled.');
+        showOk('monitorStatus', 'Connected. Sounds enabled.');
         stopPinging();
       }
     };
 
     // Show camera media on monitor
-    pc.ontrack = (e)=>{
+    pc.ontrack = (e) => {
       if (e.track.kind === 'video') {
         document.getElementById('monitorVideo').srcObject = e.streams[0];
         document.getElementById('micBtn').style.display = 'flex';
@@ -258,61 +266,69 @@ async function createAnswerFromOffer(offer, roomCode){
     // Add monitor mic (muted by default)
     try {
       monitorMicStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true }
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
       monitorMicTrack = monitorMicStream.getAudioTracks()[0];
       monitorMicTrack.enabled = false;
       pc.addTrack(monitorMicTrack, monitorMicStream);
-    } catch(e){
+    } catch (e) {
       log('Monitor mic denied', e);
     }
 
     // ICE gather → export answer pkg via Firebase
     const gathered = [];
-    pc.onicecandidate = (ev)=>{ if (ev.candidate) gathered.push(ev.candidate); };
-    pc.onicegatheringstatechange = ()=>{
+    pc.onicecandidate = (ev) => { if (ev.candidate) gathered.push(ev.candidate); };
+    pc.onicegatheringstatechange = () => {
       if (pc.iceGatheringState === 'complete') {
-        const answerPkg = { sdp: pc.localDescription, candidates: gathered };
+        // Convert WebRTC objects to plain JSON for Firebase
+        const answerPkg = {
+          sdp: {
+            type: pc.localDescription.type,
+            sdp: pc.localDescription.sdp
+          },
+          candidates: gathered.map(c => c.toJSON())
+        };
+
         db.ref('rooms/' + roomCode + '/answer').set(answerPkg)
           .then(() => {
             document.getElementById('monitorStep2').style.display = 'block';
-            showOk('monitorStatus','Connected. Watch and control sounds.');
+            showOk('monitorStatus', 'Connected. Watch and control sounds.');
           })
           .catch(err => {
-            showErr('monitorStatus','Firebase error: ' + err.message);
+            showErr('monitorStatus', 'Firebase error: ' + err.message);
           });
       }
     };
 
     await pc.setRemoteDescription(offer.sdp);
     if (offer.candidates)
-      for (const c of offer.candidates){ await pc.addIceCandidate(c); }
+      for (const c of offer.candidates) { await pc.addIceCandidate(c); }
 
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
-  } catch(err){
-    showErr('monitorStatus','Error: '+ err.message);
+  } catch (err) {
+    showErr('monitorStatus', 'Error: ' + err.message);
   }
 }
 
 // Persistent ping loop from monitor to camera until we get "ready"
-function startPinging(){
+function startPinging() {
   stopPinging();
   const hint = document.getElementById('soundHint');
   let dots = 0;
-  pingTimer = setInterval(()=>{
+  pingTimer = setInterval(() => {
     if (!dataChannel || dataChannel.readyState !== 'open') return;
-    try { dataChannel.send(JSON.stringify({action:'ping'})); } catch {}
-    dots = (dots+1)%4;
+    try { dataChannel.send(JSON.stringify({ action: 'ping' })); } catch {}
+    dots = (dots + 1) % 4;
     hint.textContent = 'Waiting for Camera handshake' + '.'.repeat(dots);
   }, 800);
 }
-function stopPinging(){ if (pingTimer){ clearInterval(pingTimer); pingTimer = null; } }
+function stopPinging() { if (pingTimer) { clearInterval(pingTimer); pingTimer = null; } }
 
 // Enable sound buttons (monitor UI)
-function enableSoundButtons(){
-  document.querySelectorAll('.sound-btn').forEach(b=> b.disabled = false);
+function enableSoundButtons() {
+  document.querySelectorAll('.sound-btn').forEach(b => b.disabled = false);
   const hint = document.getElementById('soundHint');
   hint.textContent = '🎵 Sounds ready';
   hint.style.opacity = '1';
@@ -320,34 +336,34 @@ function enableSoundButtons(){
 }
 
 // Push-to-talk (monitor → camera)
-function startTalking(){
+function startTalking() {
   const btn = document.getElementById('micBtn');
   btn.classList.add('active'); btn.textContent = '🔴';
   if (monitorMicTrack) monitorMicTrack.enabled = true;
 }
-function stopTalking(){
+function stopTalking() {
   const btn = document.getElementById('micBtn');
   btn.classList.remove('active'); btn.textContent = '🎤';
   if (monitorMicTrack) monitorMicTrack.enabled = false;
 }
 
 // Monitor commands → Camera sound engine
-function playSound(el, kind){
+function playSound(el, kind) {
   if (!dataChannel || dataChannel.readyState !== 'open') {
-    showErr('monitorStatus','Connection not ready yet.');
+    showErr('monitorStatus', 'Connection not ready yet.');
     return;
   }
-  document.querySelectorAll('.sound-btn:not(.stop)').forEach(b=> b.classList.remove('active'));
+  document.querySelectorAll('.sound-btn:not(.stop)').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
-  try { dataChannel.send(JSON.stringify({ action:'play', sound: kind })); } catch {}
-  showOk('monitorStatus','Playing '+ el.textContent.replaceAll('\n',' ').trim());
+  try { dataChannel.send(JSON.stringify({ action: 'play', sound: kind })); } catch {}
+  showOk('monitorStatus', 'Playing ' + el.textContent.replaceAll('\n', ' ').trim());
 }
-function stopSound(){
+function stopSound() {
   if (dataChannel && dataChannel.readyState === 'open') {
-    try { dataChannel.send(JSON.stringify({ action:'stop' })); } catch {}
+    try { dataChannel.send(JSON.stringify({ action: 'stop' })); } catch {}
   }
-  document.querySelectorAll('.sound-btn').forEach(b=> b.classList.remove('active'));
-  showInfo('monitorStatus','Sound stopped.');
+  document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active'));
+  showInfo('monitorStatus', 'Sound stopped.');
 }
 
 // CAMERA: Web Audio helpers (exclusive playback + reliable stop)
@@ -365,14 +381,14 @@ async function ensureAudioRunning() {
 
 function stopSoundOnCamera() {
   melodyActive = false;
-  if (melodyTimer) { try { clearTimeout(melodyTimer); } catch{} melodyTimer = null; }
+  if (melodyTimer) { try { clearTimeout(melodyTimer); } catch {} melodyTimer = null; }
 
-  try { if (currentOsc) { currentOsc.onended = null; currentOsc.stop(0); } } catch{}
-  try { if (currentOsc) currentOsc.disconnect(); } catch{}
+  try { if (currentOsc) { currentOsc.onended = null; currentOsc.stop(0); } } catch {}
+  try { if (currentOsc) currentOsc.disconnect(); } catch {}
   currentOsc = null;
 
-  try { if (currentSrc) { currentSrc.onended = null; currentSrc.stop(0); } } catch{}
-  try { if (currentSrc) currentSrc.disconnect(); } catch{}
+  try { if (currentSrc) { currentSrc.onended = null; currentSrc.stop(0); } } catch {}
+  try { if (currentSrc) currentSrc.disconnect(); } catch {}
   currentSrc = null;
 }
 
@@ -383,11 +399,11 @@ async function playSoundOnCamera(kind) {
   if (kind === 'whitenoise') return playWhiteNoise();
   if (kind === 'rain') return playRain();
   if (kind === 'lullaby1') return playMelody(
-    [261.63,261.63,392.00,392.00,440.00,440.00,392.00,349.23,349.23,329.63,329.63,293.66,293.66,261.63],
+    [261.63, 261.63, 392.00, 392.00, 440.00, 440.00, 392.00, 349.23, 349.23, 329.63, 329.63, 293.66, 293.66, 261.63],
     0.52, 620
   );
   if (kind === 'lullaby2') return playMelody(
-    [329.63,293.66,293.66,329.63,293.66,261.63,293.66,329.63,329.63,293.66],
+    [329.63, 293.66, 293.66, 329.63, 293.66, 261.63, 293.66, 329.63, 329.63, 293.66],
     0.52, 620
   );
 }
