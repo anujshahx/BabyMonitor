@@ -1,5 +1,3 @@
-// app.js
-
 // Firebase config & init (replace with your own project values)
 const firebaseConfig = {
   apiKey: "AIzaSyBjtdeKEtw_FpcMC6Ab4uE2V9pZLAxr0dQ",
@@ -10,6 +8,7 @@ const firebaseConfig = {
   messagingSenderId: "802534707567",
   appId: "1:802534707567:web:36d267b573f903bf25d89a"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
