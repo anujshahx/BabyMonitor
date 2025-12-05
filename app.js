@@ -11,6 +11,12 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const auth = firebase.auth();
+
+// Sign in anonymously so rules can require auth != null
+auth.signInAnonymously().catch(err => {
+  console.error('Auth error', err);
+});
 
 // STUN only; add TURN for internet NAT traversal if needed
 const rtcConfig = {
@@ -437,3 +443,4 @@ function playRain() {
   src.start(0);
   currentSrc = src;
 }
+
