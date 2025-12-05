@@ -47,10 +47,10 @@ let melodyActive = false;
 const log = (...a) => console.log('[BM]', ...a);
 
 // UI helpers
-const showPanel = id => {
+function showPanel(id) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-};
+}
 const showInfo = (id,msg) => {
   const el = document.getElementById(id);
   el.className='status info';
@@ -443,4 +443,3 @@ function playRain() {
   src.start(0);
   currentSrc = src;
 }
-
