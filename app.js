@@ -56,19 +56,19 @@ function showInfo(id,msg) {
   el.className='status info';
   el.style.display='block';
   el.textContent = msg;
-};
+}
 function showOk(id,msg) {
   const el = document.getElementById(id);
   el.className='status success';
   el.style.display='block';
   el.textContent = msg;
-};
+}
 function showErr(id,msg) {
   const el = document.getElementById(id);
   el.className='status error';
   el.style.display='block';
   el.textContent = msg;
-};
+}
 
 function showMonitor(){ showPanel('monitor'); }
 
