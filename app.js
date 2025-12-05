@@ -18,6 +18,11 @@ auth.signInAnonymously().catch(err => {
   console.error('Auth error', err);
 });
 
+auth.onAuthStateChanged(user => {
+  console.log('DEBUG: auth state', user ? user.uid : null);
+});
+
+
 // STUN only; add TURN for internet NAT traversal if needed
 const rtcConfig = {
   iceServers: [
@@ -140,18 +145,20 @@ async function startCamera(){
     // ICE gather → export offer pkg via Firebase
     const gathered = [];
     pc.onicecandidate = (ev)=>{ if (ev.candidate) gathered.push(ev.candidate); };
-    pc.onicegatheringstatechange = ()=>{
+    pc.onicegatheringstatechange = () => {
       if (pc.iceGatheringState === 'complete') {
         const offerPkg = { sdp: pc.localDescription, candidates: gathered };
         const roomCode = generateRoomCode();
         currentRoomCode = roomCode;
-
+        
+        console.log('DEBUG: writing offer for room', roomCode, offerPkg);
+        
         db.ref('rooms/' + roomCode + '/offer').set(offerPkg)
           .then(() => {
+            console.log('DEBUG: offer write OK for room', roomCode);
             document.getElementById('roomCodeDisplay').textContent = roomCode;
             showOk('cameraStatus','Camera ready. Share code: ' + roomCode);
-
-            // Listen for answer
+            
             db.ref('rooms/' + roomCode + '/answer').on('value', async snap => {
               const answer = snap.val();
               if (!answer || !pc || pc.signalingState === 'stable') return;
@@ -166,6 +173,7 @@ async function startCamera(){
             });
           })
           .catch(err => {
+            console.error('DEBUG: offer write FAILED', err);
             showErr('cameraStatus','Firebase error: ' + err.message);
           });
       }
